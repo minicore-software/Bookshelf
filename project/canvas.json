@@ -1,0 +1,23 @@
+{
+  "v": 3,
+  "createdOnFiles": { "v": 1, "at": "2026-10-24T18:00:00Z" },
+  "title": "Bookshelf App Design",
+  "launch": { "view": "canvas" },
+  "pages": [],
+  "boards": {
+    "Main.dc.html": { "x": 0, "y": 0, "w": 390, "h": 844, "title": "Library", "is_interactive": true },
+    "BookDetail.dc.html": { "x": 470, "y": 0, "w": 390, "h": 844, "title": "Book Detail", "is_interactive": true },
+    "AddBook.dc.html": { "x": 940, "y": 0, "w": 390, "h": 844, "title": "Discover & Add", "is_interactive": true },
+    "ProgressUpdate.dc.html": { "x": 1410, "y": 0, "w": 390, "h": 844, "title": "Update Progress", "is_interactive": true },
+    "Stats.dc.html": { "x": 0, "y": 964, "w": 390, "h": 844, "title": "Reading Stats", "is_interactive": true },
+    "Settings.dc.html": { "x": 470, "y": 964, "w": 390, "h": 844, "title": "Settings", "is_interactive": true },
+    "LendBook.dc.html": { "x": 1410, "y": 964, "w": 390, "h": 844, "title": "Lend a Book", "is_interactive": true },
+    "Loans.dc.html": { "x": 1880, "y": 964, "w": 390, "h": 844, "title": "My Loans", "is_interactive": true }
+  },
+  "order": ["Main.dc.html", "BookDetail.dc.html", "AddBook.dc.html", "ProgressUpdate.dc.html", "Stats.dc.html", "Settings.dc.html", "LendBook.dc.html", "Loans.dc.html"],
+  "notes": {
+    "intro": { "x": 0, "y": -260, "text": "Bookshelf — a calm, paper-and-ink home library app", "kind": "title1", "maxW": 1800 },
+    "row2": { "x": 0, "y": 700, "text": "Flows off Library: progress updates, reading insights, settings, and lending", "kind": "title1", "maxW": 1300 }
+  },
+  "designSystems": []
+}

@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Bookshelf — Lend a Book</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,500&family=Inter:wght@400;500;600;700&display=swap">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+  body{margin:0;font-family:'Inter',system-ui,sans-serif;background:#F3EEE3;}
+  a{color:inherit;text-decoration:none;}
+  .btn-primary:hover{background:#26382E;}
+  input::placeholder, textarea::placeholder{color:#B9AF9B;}
+</style>
+</helmet>
+
+<div style="width:390px;height:844px;box-sizing:border-box;background:#F3EEE3;display:flex;flex-direction:column;overflow:hidden;position:relative;color:#231F20;">
+
+  <div style="flex:1;background:rgba(35,31,32,0.35);display:flex;flex-direction:column;justify-content:flex-end;">
+
+    <div style="background:#F3EEE3;border-radius:22px 22px 0 0;padding:10px 20px 28px 20px;display:flex;flex-direction:column;gap:18px;box-shadow:0 -8px 24px rgba(0,0,0,0.12);max-height:780px;overflow-y:auto;">
+
+      <div style="width:36px;height:4px;border-radius:2px;background:#E3DCC9;margin:6px auto 0 auto;"></div>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-family:'Fraunces',serif;font-weight:600;font-size:19px;">Lend this book</span>
+        <a href="BookDetail.dc.html" aria-label="Close" style="width:30px;height:30px;border-radius:50%;background:#EDE5D3;display:flex;align-items:center;justify-content:center;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4A4640" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </a>
+      </div>
+
+      <div style="display:flex;gap:12px;align-items:center;">
+        <div style="width:44px;height:64px;border-radius:5px;background:#3F6D63;flex-shrink:0;"></div>
+        <div style="display:flex;flex-direction:column;gap:2px;">
+          <span style="font-size:14.5px;font-weight:600;">The Hidden Life of Trees</span>
+          <span style="font-size:12.5px;color:#8A8274;">Peter Wohlleben</span>
+        </div>
+      </div>
+
+      <!-- Borrower -->
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <label style="font-size:12.5px;font-weight:600;color:#8A8274;text-transform:uppercase;letter-spacing:0.04em;" for="borrower">Borrower</label>
+        <div style="display:flex;align-items:center;gap:10px;background:#FBF8F1;border:1px solid #E3DCC9;border-radius:12px;padding:12px 14px;">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#8A8274" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <input id="borrower" type="text" value="Priya Nair" style="flex:1;border:none;background:transparent;outline:none;font-size:14px;color:#231F20;font-family:'Inter',sans-serif;">
+        </div>
+      </div>
+
+      <!-- Contact -->
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <label style="font-size:12.5px;font-weight:600;color:#8A8274;text-transform:uppercase;letter-spacing:0.04em;" for="contact">Contact (optional)</label>
+        <div style="display:flex;align-items:center;gap:10px;background:#FBF8F1;border:1px solid #E3DCC9;border-radius:12px;padding:12px 14px;">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#8A8274" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+          <input id="contact" type="text" placeholder="Phone or email" style="flex:1;border:none;background:transparent;outline:none;font-size:14px;color:#231F20;font-family:'Inter',sans-serif;">
+        </div>
+      </div>
+
+      <!-- Dates -->
+      <div style="display:flex;gap:12px;">
+        <div style="display:flex;flex-direction:column;gap:8px;flex:1;">
+          <label style="font-size:12.5px;font-weight:600;color:#8A8274;text-transform:uppercase;letter-spacing:0.04em;" for="loaned">Loaned on</label>
+          <div style="display:flex;align-items:center;gap:8px;background:#FBF8F1;border:1px solid #E3DCC9;border-radius:12px;padding:12px 14px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8A8274" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <input id="loaned" type="text" value="Oct 24" style="flex:1;width:0;border:none;background:transparent;outline:none;font-size:13.5px;color:#231F20;font-family:'Inter',sans-serif;">
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;flex:1;">
+          <label style="font-size:12.5px;font-weight:600;color:#8A8274;text-transform:uppercase;letter-spacing:0.04em;" for="due">Due back</label>
+          <div style="display:flex;align-items:center;gap:8px;background:#FBF8F1;border:1px solid #E3DCC9;border-radius:12px;padding:12px 14px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8A8274" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <input id="due" type="text" value="Nov 21" style="flex:1;width:0;border:none;background:transparent;outline:none;font-size:13.5px;color:#231F20;font-family:'Inter',sans-serif;">
+          </div>
+        </div>
+      </div>
+
+      <!-- Reminder toggle -->
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:4px 2px;">
+        <div style="display:flex;flex-direction:column;gap:1px;">
+          <span style="font-size:14px;font-weight:600;">Remind me before due date</span>
+          <span style="font-size:12px;color:#8A8274;">A nudge two days before Nov 21</span>
+        </div>
+        <div style="width:40px;height:23px;border-radius:12px;background:#2F4538;position:relative;flex-shrink:0;"><div style="width:18px;height:18px;border-radius:50%;background:#F3EEE3;position:absolute;top:2.5px;right:2.5px;box-shadow:0 1px 2px rgba(0,0,0,0.2);"></div></div>
+      </div>
+
+      <!-- Notes -->
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <label style="font-size:12.5px;font-weight:600;color:#8A8274;text-transform:uppercase;letter-spacing:0.04em;" for="notes">Notes (optional)</label>
+        <textarea id="notes" placeholder="Condition, where you handed it off..." style="resize:none;height:52px;border:1px solid #E3DCC9;background:#FBF8F1;border-radius:12px;padding:12px;font-family:'Inter',sans-serif;font-size:13.5px;color:#231F20;outline:none;"></textarea>
+      </div>
+
+      <a href="Loans.dc.html" class="btn-primary" style="background:#2F4538;color:#F3EEE3;border-radius:12px;padding:14px;text-align:center;font-size:14.5px;font-weight:600;transition:background 0.15s;">Mark as lent</a>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

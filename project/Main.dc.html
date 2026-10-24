@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Bookshelf — Library</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,500&family=Inter:wght@400;500;600;700&display=swap">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+  body{margin:0;font-family:'Inter',system-ui,sans-serif;background:#F3EEE3;}
+  a{color:inherit;text-decoration:none;}
+  .nav-link:hover{opacity:0.75;}
+  .chip:hover{background:#EDE5D3;}
+  .cover:hover{transform:translateY(-2px);}
+  .fab:hover{background:#26382E;}
+</style>
+</helmet>
+
+<div style="width:390px;height:844px;box-sizing:border-box;background:#F3EEE3;display:flex;flex-direction:column;overflow:hidden;position:relative;color:#231F20;">
+
+  <!-- Header -->
+  <div style="padding:28px 20px 12px 20px;display:flex;flex-direction:column;gap:14px;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+      <div style="display:flex;flex-direction:column;gap:2px;">
+        <span style="font-size:13px;color:#8A8274;letter-spacing:0.02em;">Good evening</span>
+        <span style="font-family:'Fraunces',serif;font-weight:600;font-size:26px;color:#231F20;">Marco's Shelf</span>
+      </div>
+      <div style="width:40px;height:40px;border-radius:50%;background:#2F4538;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <span style="font-family:'Fraunces',serif;color:#F3EEE3;font-size:15px;font-weight:600;">MT</span>
+      </div>
+    </div>
+
+    <!-- Search bar -->
+    <a href="AddBook.dc.html" aria-label="Search or add a book" style="display:flex;align-items:center;gap:10px;background:#FBF8F1;border:1px solid #E3DCC9;border-radius:14px;padding:11px 14px;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8A8274" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <span style="font-size:14px;color:#8A8274;">Search your library, or add a book</span>
+    </a>
+  </div>
+
+  <!-- Scrollable content -->
+  <div style="flex:1;overflow-y:auto;padding-bottom:92px;">
+
+    <!-- Currently reading -->
+    <div style="padding:16px 20px 4px 20px;display:flex;justify-content:space-between;align-items:baseline;">
+      <span style="font-family:'Fraunces',serif;font-size:18px;font-weight:600;">Currently reading</span>
+      <span style="font-size:12px;color:#2F4538;font-weight:600;">2 books</span>
+    </div>
+    <div style="display:flex;gap:14px;padding:12px 20px;overflow-x:auto;">
+
+      <a href="BookDetail.dc.html" class="cover" style="flex-shrink:0;width:132px;display:flex;flex-direction:column;gap:8px;transition:transform 0.15s;">
+        <div style="width:132px;height:188px;border-radius:8px;background:#3F6D63;box-shadow:0 4px 10px rgba(35,31,32,0.12);display:flex;align-items:flex-end;padding:12px;box-sizing:border-box;">
+          <span style="font-family:'Fraunces',serif;font-style:italic;color:#EDE9DC;font-size:14px;line-height:1.25;">The Hidden Life of Trees</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <div style="height:4px;border-radius:2px;background:#E3DCC9;overflow:hidden;"><div style="width:64%;height:100%;background:#3F7A5B;"></div></div>
+          <span style="font-size:11px;color:#8A8274;">64% · p.212 of 331</span>
+        </div>
+      </a>
+
+      <a href="BookDetail.dc.html" class="cover" style="flex-shrink:0;width:132px;display:flex;flex-direction:column;gap:8px;transition:transform 0.15s;">
+        <div style="width:132px;height:188px;border-radius:8px;background:#A8562E;box-shadow:0 4px 10px rgba(35,31,32,0.12);display:flex;align-items:flex-end;padding:12px;box-sizing:border-box;">
+          <span style="font-family:'Fraunces',serif;font-style:italic;color:#F6EBDD;font-size:14px;line-height:1.25;">Project Hail Mary</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <div style="height:4px;border-radius:2px;background:#E3DCC9;overflow:hidden;"><div style="width:21%;height:100%;background:#3F7A5B;"></div></div>
+          <span style="font-size:11px;color:#8A8274;">21% · p.94 of 476</span>
+        </div>
+      </a>
+
+    </div>
+
+    <!-- Lent out -->
+    <div style="padding:18px 20px 4px 20px;display:flex;justify-content:space-between;align-items:baseline;">
+      <span style="font-family:'Fraunces',serif;font-size:18px;font-weight:600;">Lent out</span>
+      <a href="Loans.dc.html" style="font-size:12px;color:#2F4538;font-weight:600;">See all · 3</a>
+    </div>
+    <div style="display:flex;gap:14px;padding:12px 20px;overflow-x:auto;">
+
+      <a href="Loans.dc.html" class="cover" style="flex-shrink:0;width:132px;display:flex;flex-direction:column;gap:8px;transition:transform 0.15s;">
+        <div style="position:relative;width:132px;height:188px;border-radius:8px;background:#B99A2E;opacity:0.55;box-shadow:0 4px 10px rgba(35,31,32,0.12);display:flex;align-items:flex-end;padding:12px;box-sizing:border-box;">
+          <span style="font-family:'Fraunces',serif;font-style:italic;color:#F6EBDD;font-size:14px;line-height:1.25;">Sapiens</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:2px;">
+          <span style="font-size:11.5px;font-weight:600;color:#4A4640;">With Priya</span>
+          <span style="font-size:11px;color:#C1693C;">Due in 3 days</span>
+        </div>
+      </a>
+
+      <a href="Loans.dc.html" class="cover" style="flex-shrink:0;width:132px;display:flex;flex-direction:column;gap:8px;transition:transform 0.15s;">
+        <div style="position:relative;width:132px;height:188px;border-radius:8px;background:#5C6B8A;opacity:0.55;box-shadow:0 4px 10px rgba(35,31,32,0.12);display:flex;align-items:flex-end;padding:12px;box-sizing:border-box;">
+          <span style="font-family:'Fraunces',serif;font-style:italic;color:#F6EBDD;font-size:14px;line-height:1.25;">Klara and the Sun</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:2px;">
+          <span style="font-size:11.5px;font-weight:600;color:#4A4640;">With Diego</span>
+          <span style="font-size:11px;color:#9B2C2C;font-weight:600;">Overdue 2 days</span>
+        </div>
+      </a>
+
+    </div>
+
+    <!-- Filter chips -->
+    <div style="display:flex;gap:8px;padding:18px 20px 10px 20px;overflow-x:auto;">
+      <div class="chip" style="flex-shrink:0;padding:7px 16px;border-radius:20px;background:#2F4538;color:#F3EEE3;font-size:13px;font-weight:600;">All · 27</div>
+      <div class="chip" style="flex-shrink:0;padding:7px 16px;border-radius:20px;background:#FBF8F1;border:1px solid #E3DCC9;color:#4A4640;font-size:13px;">Reading · 2</div>
+      <div class="chip" style="flex-shrink:0;padding:7px 16px;border-radius:20px;background:#FBF8F1;border:1px solid #E3DCC9;color:#4A4640;font-size:13px;">Finished · 19</div>
+      <div class="chip" style="flex-shrink:0;padding:7px 16px;border-radius:20px;background:#FBF8F1;border:1px solid #E3DCC9;color:#4A4640;font-size:13px;">Want to read · 6</div>
+      <div class="chip" style="flex-shrink:0;padding:7px 16px;border-radius:20px;background:#FBF8F1;border:1px solid #E3DCC9;color:#4A4640;font-size:13px;">Lent out · 3</div>
+    </div>
+
+    <!-- Library grid -->
+    <div style="padding:12px 20px 8px 20px;font-family:'Fraunces',serif;font-size:18px;font-weight:600;">Your library</div>
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;padding:0 20px 24px 20px;">
+
+      <a href="BookDetail.dc.html" class="cover" style="display:flex;flex-direction:column;gap:6px;transition:transform 0.15s;">
+        <div style="position:relative;aspect-ratio:3/4.3;border-radius:7px;background:#3F6D63;box-shadow:0 2px 6px rgba(35,31,32,0.1);"><span style="position:absolute;top:6px;right:6px;width:9px;height:9px;border-radius:50%;background:#3F7A5B;border:2px solid #F3EEE3;"></span></div>
+        <span style="font-size:11.5px;color:#4A4640;line-height:1.3;">The Hidden Life of Trees</span>
+      </a>
+
+      <a href="BookDetail.dc.html" class="cover" style="display:flex;flex-direction:column;gap:6px;transition:transform 0.15s;">
+        <div style="position:relative;aspect-ratio:3/4.3;border-radius:7px;background:#A8562E;box-shadow:0 2px 6px rgba(35,31,32,0.1);"><span style="position:absolute;top:6px;right:6px;width:9px;height:9px;border-radius:50%;background:#3F7A5B;border:2px solid #F3EEE3;"></span></div>
+        <span style="font-size:11.5px;color:#4A4640;line-height:1.3;">Project Hail Mary</span>
+      </a>
+
+      <a href="BookDetail.dc.html" class="cover" style="display:flex;flex-direction:column;gap:6px;transition:transform 0.15s;">
+        <div style="position:relative;aspect-ratio:3/4.3;border-radius:7px;background:#B99A2E;box-shadow:0 2px 6px rgba(35,31,32,0.1);"><span style="position:absolute;top:6px;right:6px;width:9px;height:9px;border-radius:50%;background:#F3EEE3;border:2px solid #C1693C;"></span></div>
+        <span style="font-size:11.5px;color:#4A4640;line-height:1.3;">Sapiens</span>
+        <span style="font-size:10px;color:#C1693C;">Lent to Priya</span>
+      </a>
+
+      <a href="BookDetail.dc.html" class="cover" style="display:flex;flex-direction:column;gap:6px;transition:transform 0.15s;">
+        <div style="position:relative;aspect-ratio:3/4.3;border-radius:7px;background:#5C6B8A;box-shadow:0 2px 6px rgba(35,31,32,0.1);"><span style="position:absolute;top:6px;right:6px;width:9px;height:9px;border-radius:50%;background:#C9A227;border:2px solid #F3EEE3;"></span></div>
+        <span style="font-size:11.5px;color:#4A4640;line-height:1.3;">Klara and the Sun</span>
+      </a>
+
+      <a href="BookDetail.dc.html" class="cover" style="display:flex;flex-direction:column;gap:6px;transition:transform 0.15s;">
+        <div style="position:relative;aspect-ratio:3/4.3;border-radius:7px;background:#6B4A63;box-shadow:0 2px 6px rgba(35,31,32,0.1);"><span style="position:absolute;top:6px;right:6px;width:9px;height:9px;border-radius:50%;background:#9B8F7A;border:2px solid #F3EEE3;"></span></div>
+        <span style="font-size:11.5px;color:#4A4640;line-height:1.3;">Pachinko</span>
+      </a>
+
+      <a href="BookDetail.dc.html" class="cover" style="display:flex;flex-direction:column;gap:6px;transition:transform 0.15s;">
+        <div style="position:relative;aspect-ratio:3/4.3;border-radius:7px;background:#7A8559;box-shadow:0 2px 6px rgba(35,31,32,0.1);"><span style="position:absolute;top:6px;right:6px;width:9px;height:9px;border-radius:50%;background:#C9A227;border:2px solid #F3EEE3;"></span></div>
+        <span style="font-size:11.5px;color:#4A4640;line-height:1.3;">Braiding Sweetgrass</span>
+      </a>
+
+    </div>
+  </div>
+
+  <!-- FAB -->
+  <a href="AddBook.dc.html" aria-label="Add a book" class="fab" style="position:absolute;right:20px;bottom:104px;width:52px;height:52px;border-radius:50%;background:#2F4538;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 14px rgba(35,31,32,0.25);transition:background 0.15s;">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F3EEE3" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+  </a>
+
+  <!-- Bottom nav -->
+  <div style="position:absolute;left:0;right:0;bottom:0;height:84px;background:#FBF8F1;border-top:1px solid #E3DCC9;display:flex;align-items:center;justify-content:space-around;padding-bottom:18px;">
+    <a href="Main.dc.html" class="nav-link" aria-label="Library" style="display:flex;flex-direction:column;align-items:center;gap:3px;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2F4538" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 20V6a2 2 0 0 1 2-2h4v16"/><path d="M9 20V6a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v14"/><path d="M15 20V8a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v12"/></svg>
+      <span style="font-size:11px;color:#2F4538;font-weight:600;">Library</span>
+    </a>
+    <a href="AddBook.dc.html" class="nav-link" aria-label="Discover" style="display:flex;flex-direction:column;align-items:center;gap:3px;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9B9382" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <span style="font-size:11px;color:#9B9382;">Discover</span>
+    </a>
+    <a href="Stats.dc.html" class="nav-link" aria-label="Stats" style="display:flex;flex-direction:column;align-items:center;gap:3px;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9B9382" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="20" x2="5" y2="12"/><line x1="12" y1="20" x2="12" y2="6"/><line x1="19" y1="20" x2="19" y2="15"/></svg>
+      <span style="font-size:11px;color:#9B9382;">Stats</span>
+    </a>
+    <a href="Settings.dc.html" class="nav-link" aria-label="Settings" style="display:flex;flex-direction:column;align-items:center;gap:3px;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9B9382" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <span style="font-size:11px;color:#9B9382;">Settings</span>
+    </a>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>
