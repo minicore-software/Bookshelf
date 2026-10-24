@@ -20,6 +20,7 @@ const ROOT_DIR = join(SCRIPT_DIR, '..', '..');
 const ICON_SVG_PATH = join(ROOT_DIR, 'resources', 'icon.svg');
 const RES_DIR = join(ROOT_DIR, 'app', 'src', 'main', 'res');
 const OUT_DIR = join(SCRIPT_DIR, 'out');
+const MANIFEST_PATH = join(ROOT_DIR, 'app', 'src', 'main', 'AndroidManifest.xml');
 
 // --- Constants (see plan section 4 for how SCALE/CENTER were measured) ---
 
@@ -475,7 +476,7 @@ function check() {
     );
   }
 
-  // Adaptive XML: background drawable reference + no monochrome.
+  // Adaptive XML: byte-for-byte drift against the exact content `generate` would write.
   for (const xmlName of ['ic_launcher.xml', 'ic_launcher_round.xml']) {
     const xmlPath = join(RES_DIR, 'mipmap-anydpi', xmlName);
     if (!existsSync(xmlPath)) {
@@ -483,15 +484,38 @@ function check() {
       continue;
     }
     const xml = readFileSync(xmlPath, 'utf8');
-    if (!xml.includes('android:drawable="@color/ic_launcher_background"')) {
-      errors.push(`${xmlPath}: background does not reference @color/ic_launcher_background`);
-    }
-    if (xml.includes('<monochrome')) {
-      errors.push(`${xmlPath}: unexpected <monochrome> element (out of scope for this ticket)`);
+    if (xml !== ADAPTIVE_ICON_XML) {
+      errors.push(
+        `${xmlPath}: drift detected — committed file no longer matches the generated ` +
+          `adaptive-icon XML. Re-run "npm run generate" and commit the result, or revert ` +
+          `the hand-edit.`
+      );
     }
   }
 
-  console.log('\nBackground coverage, monochrome and manifest-adjacent checks complete.');
+  // Color resource: byte-for-byte drift, same idea as the adaptive XML above.
+  if (existsSync(colorXmlPath) && colorXml !== COLOR_XML) {
+    errors.push(
+      `${colorXmlPath}: drift detected — committed file no longer matches the generated ` +
+        `color resource. Re-run "npm run generate" and commit the result, or revert the ` +
+        `hand-edit.`
+    );
+  }
+
+  // Manifest: both icon attributes must point at the generated mipmaps.
+  if (!existsSync(MANIFEST_PATH)) {
+    errors.push(`missing ${MANIFEST_PATH}`);
+  } else {
+    const manifest = readFileSync(MANIFEST_PATH, 'utf8');
+    if (!manifest.includes('android:icon="@mipmap/ic_launcher"')) {
+      errors.push(`${MANIFEST_PATH}: missing android:icon="@mipmap/ic_launcher"`);
+    }
+    if (!manifest.includes('android:roundIcon="@mipmap/ic_launcher_round"')) {
+      errors.push(`${MANIFEST_PATH}: missing android:roundIcon="@mipmap/ic_launcher_round"`);
+    }
+  }
+
+  console.log('\nBackground coverage, drift and manifest checks complete.');
 
   if (errors.length > 0) {
     console.error('\nFAILED:');
