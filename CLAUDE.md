@@ -151,3 +151,15 @@ docs/
 ```
 
 File naming: `<Slug>-<kind>.md` (e.g. `App-Bootstrap-Epic.md`, `App-Bootstrap-Epic-GitHub.md`). ADRs follow the folder's own numbering once one exists (`ADR-001-<Title-In-Dashes>.md` otherwise).
+
+---
+
+## Branching
+
+Branches must be prefixed `BOOKSHELF-XXXX` — the GitHub issue number, zero-padded to 4 digits — before the slug:
+
+```
+<kind>/BOOKSHELF-<XXXX>-<slug>
+```
+
+Example: issue #7 → `feature/BOOKSHELF-0007-android-project-scaffold` (not `feature/7-android-project-scaffold`). `kind` is `feature` | `fix` | `chore` | `refactor` | `docs`, same as for commits. Commits keep using Conventional Commits as normal — this prefix is branch-naming only.
