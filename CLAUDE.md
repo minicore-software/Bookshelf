@@ -135,3 +135,19 @@ The product design lives in [project/](project) as a Design canvas (`project/can
 
 **Palette:** paper `#F3EEE3`, ink `#231F20`, forest (primary) `#2F4538`, terracotta (accent) `#C1693C`, gold (rating/finished) `#C9A227`.
 **Type:** Fraunces (serif, titles/headings) + Inter (sans, UI/body).
+
+---
+
+## Documentation Conventions
+
+All project documents other than `README.md`/`CLAUDE.md`/`CHANGELOG.md` live under [`docs/`](docs), never scattered at the repo root:
+
+```
+docs/
+ ├── epics/   # epic brainstorming docs + their GitHub-ready rewrite (<Slug>-Epic.md, <Slug>-Epic-GitHub.md)
+ ├── plans/   # implementation plans
+ ├── specs/   # feature/UX specs
+ └── adr/     # Architecture Decision Records
+```
+
+File naming: `<Slug>-<kind>.md` (e.g. `App-Bootstrap-Epic.md`, `App-Bootstrap-Epic-GitHub.md`). ADRs follow the folder's own numbering once one exists (`ADR-001-<Title-In-Dashes>.md` otherwise).
