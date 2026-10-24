@@ -44,6 +44,9 @@ Layered MVVM + Repository, feature-first package structure:
 
 ```
 app/src/main/java/com/minicore/bookshelf/
+ ├── BookshelfApp.kt        # @HiltAndroidApp Application
+ ├── MainActivity.kt        # @AndroidEntryPoint, hosts the NavHost
+ ├── navigation/            # BookshelfDestinations (routes), BookshelfNavGraph (NavHost)
  ├── features/
  │    ├── library/
  │    │    ├── ui/         # Compose screens + ViewModels (shelf, book detail, add book)
