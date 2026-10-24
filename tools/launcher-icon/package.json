@@ -1,0 +1,14 @@
+{
+  "name": "launcher-icon",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Generates the Bookshelf adaptive launcher icon (foreground/background mipmaps, adaptive XML, legacy/round fallbacks) from resources/icon.svg.",
+  "scripts": {
+    "generate": "node generate.mjs generate",
+    "check": "node generate.mjs check"
+  },
+  "devDependencies": {
+    "@resvg/resvg-js": "2.6.2"
+  }
+}

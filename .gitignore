@@ -33,3 +33,7 @@ google-services.json
 
 # Android Profiling
 *.hprof
+
+# Launcher icon generation tool (dev-only, not part of the Gradle build)
+tools/launcher-icon/node_modules/
+tools/launcher-icon/out/

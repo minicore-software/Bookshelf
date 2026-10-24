@@ -113,6 +113,23 @@ See [CLAUDE.md](CLAUDE.md) for the full build command reference and tech stack v
 
 ---
 
+## 🖼 Regenerating the launcher icon
+
+The adaptive launcher icon (`app/src/main/res/mipmap-*/ic_launcher*`, `mipmap-anydpi/ic_launcher*.xml`, `values/ic_launcher_background.xml`) is generated from `resources/icon.svg` by a dev-only Node script. It never runs as part of the Gradle build. Never hand-edit the generated files — re-run the script instead.
+
+Prerequisite: Node LTS.
+
+```bash
+cd tools/launcher-icon
+npm ci
+npm run generate   # renders the mipmaps and writes the XML/color resource
+npm run check       # fitness-function checks: safe zone, dimensions, background, drift
+```
+
+`npm run generate` also writes preview aids (mask previews under circle/squircle/rounded-square/teardrop, a side-by-side against the original SVG) to the gitignored `tools/launcher-icon/out/` for visual review, and `npm run check` is the fitness function that must pass before committing. Commit the regenerated files under `app/src/main/res/` whenever `resources/icon.svg` changes.
+
+---
+
 ## 📄 License
 
 See [LICENSE](LICENSE).
