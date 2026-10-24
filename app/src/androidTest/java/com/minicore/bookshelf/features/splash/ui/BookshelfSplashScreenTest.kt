@@ -16,14 +16,17 @@ import org.junit.Test
 
 /**
  * Timing is asserted against the real/wall clock rather than
- * [androidx.compose.ui.test.MainTestClock]: on this project's Compose BOM,
- * any Compose test synchronization point (onNode queries, mainClock.advanceTimeBy)
- * fully drains the test coroutine scheduler, which resolves a plain
- * `delay()`-based LaunchedEffect immediately regardless of the requested virtual
- * time advance — confirmed empirically (see docs/plans/9-splash-screen.md Known
- * Deviations). A generous tolerance keeps the real-clock assertions non-flaky.
+ * [androidx.compose.ui.test.MainTestClock]: attempts to drive this with the virtual
+ * clock (`mainClock.advanceTimeBy`, with and without `autoAdvance = false`) did not
+ * reliably control the `delay()`-based `LaunchedEffect` on this project's Compose
+ * BOM — see docs/plans/9-splash-screen.md's "Known Deviations" section for exactly
+ * what was observed. Falling back to the real clock, the lower bound is exact: a
+ * real `delay(600)` cannot resolve less than 600ms after `startNanos`, which is
+ * captured during composition, before the effect even starts. The upper bound
+ * stays generous to absorb test-environment scheduling jitter without masking a
+ * stuck/looping effect.
  */
-private const val TOLERANCE_MS = 150L
+private const val UPPER_BOUND_SLACK_MS = 1_000L
 
 class BookshelfSplashScreenTest {
 
@@ -55,9 +58,14 @@ class BookshelfSplashScreenTest {
 
         val elapsedMs = (completedAtNanos - startNanos) / 1_000_000
         assertTrue(
-            "expected onComplete at least ${SPLASH_DURATION_MS - TOLERANCE_MS}ms after start, " +
+            "expected onComplete at least ${SPLASH_DURATION_MS}ms after start, " +
                 "was ${elapsedMs}ms",
-            elapsedMs >= SPLASH_DURATION_MS - TOLERANCE_MS
+            elapsedMs >= SPLASH_DURATION_MS
+        )
+        assertTrue(
+            "expected onComplete less than ${SPLASH_DURATION_MS + UPPER_BOUND_SLACK_MS}ms " +
+                "after start, was ${elapsedMs}ms",
+            elapsedMs < SPLASH_DURATION_MS + UPPER_BOUND_SLACK_MS
         )
 
         // Give any spurious extra firing a chance to show up before asserting the count.

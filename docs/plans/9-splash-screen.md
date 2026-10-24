@@ -309,3 +309,33 @@ There is no new entry point, data flow, permission, network access or stored dat
 None blocking. For the user's attention at review, not before building:
 - R1, FillBounds stretch on 20:9 or landscape: keep as ticketed, or switch to `Crop` after seeing it on a device.
 - S3, the wordmark renders in Playfair Display Bold (the SVG's declared second-choice font), not Georgia (proprietary and not reproducible across machines). Reversible by swapping the font file and hash, then regenerating.
+
+## 16. Known Deviations
+
+Section 12's test strategy for AC3 called for driving `BookshelfSplashScreenTest`
+with `composeRule.mainClock.autoAdvance = false` and `advanceTimeBy(599)` /
+`advanceTimeBy(1)` to deterministically control the `delay(600)` inside
+`BookshelfSplashScreen`'s `LaunchedEffect`. In practice this did not hold up:
+
+- With `mainClock.autoAdvance = false` and explicit `advanceTimeBy(...)` calls,
+  the `delay()`-based effect still resolved as soon as any Compose test
+  synchronization point ran (e.g. `onNodeWithTag(...).assertExists()`), rather
+  than only after the requested virtual-time advance. The effect completed in a
+  single `advanceTimeBy` call regardless of the millis passed in.
+- With `autoAdvance` left at its default (`true`), the same thing happened:
+  idling/sync points drained the effect immediately.
+- In both cases, "immediately" was measured against the real clock, not literal
+  zero: a mutation of the delay down to 100ms produced measured elapsed times
+  around ~239ms (test-environment overhead), not the ~600ms the virtual-time
+  plan expected and not ~0ms either. This is what revealed the mismatch — the
+  virtual clock was not actually gating the effect the way `advanceTimeBy`
+  implies it should.
+
+Given this, the shipped tests (`BookshelfSplashScreenTest`) assert timing on the
+real/wall clock instead, measuring `System.nanoTime()` from first composition to
+`onComplete`, with an exact lower bound (`elapsedMs >= SPLASH_DURATION_MS`, since
+a real `delay(600)` cannot resolve earlier than that) and a generous upper bound
+(`elapsedMs < SPLASH_DURATION_MS + 1_000`) to absorb test-environment scheduling
+jitter. The `onNodeWithTag(...).assertExists()` call used as a sync point does
+not resolve the delay for free — it still costs real wall-clock time — so it does
+not make the measurement meaningless, just subject to normal device/CI jitter.
