@@ -66,6 +66,7 @@ app/src/main/java/com/minicore/bookshelf/
  │         └── ui/         # Reading insights (books/pages/streak/genres)
  ├── core/
  │    ├── database/        # Room database, shared DAOs
+ │    ├── designsystem/    # BookshelfTheme, palette, typography (Fraunces/paper/ink/forest)
  │    ├── scanner/         # ISBN barcode scanner (ML Kit)
  │    └── lookup/          # Book metadata lookup (title/author/ISBN search, future)
  └── di/                   # Hilt modules

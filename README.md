@@ -147,6 +147,12 @@ The "Bookshelf" wordmark is rendered using a committed, version-pinned Playfair 
 
 ---
 
+## 🔠 The bundled Fraunces font
+
+The Library screen's "Bookshelf" title is rendered with a bundled, static Fraunces SemiBold font (`app/src/main/res/font/fraunces_semibold.ttf`), the same reasoning as the splash screen above: a downloadable or system-fallback font can silently resolve to the wrong typeface, and Bookshelf is local-first and offline. See the provenance and SHA-256 comment in `core/designsystem/Type.kt` for where the file came from and how it was produced, and `app/src/main/assets/licenses/Fraunces-OFL.txt` for its SIL OFL 1.1 license (shipped outside `res/font/`, which AAPT2 restricts to font files only).
+
+---
+
 ## 📄 License
 
 See [LICENSE](LICENSE).
