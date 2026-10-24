@@ -15,3 +15,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Update Progress, Reading Stats, Settings, Lend a Book, and My Loans screens.
 - Android project scaffold: app module with Hilt, Room, and Navigation Compose wiring,
   and the Gradle 9.8.2 wrapper.
+- Adaptive launcher icon (`ic_launcher`/`ic_launcher_round`) generated from
+  `resources/icon.svg`, plus the `tools/launcher-icon` generator/fitness-function script
+  (`npm run generate` / `npm run check`).
