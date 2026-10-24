@@ -88,10 +88,28 @@ The product design lives in [`project/`](project) as a Design canvas — one `.d
 ## 🚀 Getting Started
 
 ```bash
+# Build a debug APK
 ./gradlew assembleDebug
+
+# Run unit tests
+./gradlew test
+
+# Run instrumented tests (requires a connected device/emulator)
+./gradlew connectedAndroidTest
+
+# Lint
+./gradlew lint
+```
+
+Open the project in Android Studio and run the `app` configuration to launch it on a device/emulator, or install the debug APK directly:
+
+```bash
+./gradlew installDebug
 ```
 
 **App ID:** `com.minicore.bookshelf` | **minSdk:** 29 | **targetSdk:** 36
+
+See [CLAUDE.md](CLAUDE.md) for the full build command reference and tech stack versions.
 
 ---
 
