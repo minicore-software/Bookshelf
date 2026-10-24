@@ -2,4 +2,6 @@
 <resources>
     <!-- Bookshelf palette (CLAUDE.md "Design Reference"). -->
     <color name="paper">#F3EEE3</color>
+    <color name="ink">#231F20</color>
+    <color name="forest">#2F4538</color>
 </resources>
