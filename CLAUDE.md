@@ -60,6 +60,8 @@ app/src/main/java/com/minicore/bookshelf/
  │    │    ├── ui/         # Update-progress sheet, reading log
  │    │    ├── domain/
  │    │    └── data/
+ │    ├── splash/
+ │    │    └── ui/         # Two-stage cold-start splash (BookshelfSplashScreen)
  │    └── stats/
  │         └── ui/         # Reading insights (books/pages/streak/genres)
  ├── core/
