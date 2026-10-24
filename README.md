@@ -72,7 +72,7 @@ See [CLAUDE.md](CLAUDE.md) for the full field-level model and package layout.
 - Reading insights: books/pages read, streaks, genre breakdown
 
 ### Future
-- Price-free scope creep is avoided on purpose — see [CLAUDE.md](CLAUDE.md) for what's intentionally out of v1
+- Deliberately out of v1 for now: shelves/tags, price tracking, multi-device sync — see [CLAUDE.md](CLAUDE.md) for the full domain model
 
 ---
 
