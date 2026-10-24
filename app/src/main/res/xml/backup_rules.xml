@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+   Backup rules file. The database path must match
+   DatabaseModule.DATABASE_NAME ("bookshelf.db"); the -wal suffix is included
+   because Room uses WAL journal mode on API 29+.
+   See https://developer.android.com/guide/topics/data/autobackup
+   for details.
+   Note: This file is ignored for devices older than API 31
+   See https://developer.android.com/about/versions/12/backup-restore
+-->
+<full-backup-content>
+    <include domain="database" path="bookshelf.db"/>
+    <include domain="database" path="bookshelf.db-wal"/>
+</full-backup-content>
