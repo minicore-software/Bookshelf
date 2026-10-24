@@ -13,3 +13,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `CHANGELOG.md` to track notable changes going forward.
 - Product design canvas in [`project/`](project): Library, Book Detail, Discover & Add,
   Update Progress, Reading Stats, Settings, Lend a Book, and My Loans screens.
+- Android project scaffold: app module with Hilt, Room, and Navigation Compose wiring,
+  and the Gradle 9.8.2 wrapper.
