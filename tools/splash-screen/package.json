@@ -1,0 +1,14 @@
+{
+  "name": "splash-screen",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Generates the Bookshelf two-stage splash screen artwork (density-bucketed PNGs) from resources/splash-screen.svg.",
+  "scripts": {
+    "generate": "node generate.mjs generate",
+    "check": "node generate.mjs check"
+  },
+  "devDependencies": {
+    "@resvg/resvg-js": "2.6.2"
+  }
+}

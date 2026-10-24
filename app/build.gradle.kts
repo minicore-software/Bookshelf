@@ -70,6 +70,10 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.activity.compose)
     debugImplementation(libs.androidx.compose.ui.tooling)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
+
+    // Splash screen
+    implementation(libs.androidx.core.splashscreen)
 
     // Lifecycle
     implementation(libs.androidx.lifecycle.viewmodel.compose)
@@ -100,4 +104,5 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.kotlinx.coroutines.test)
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
 }

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Bookshelf palette (CLAUDE.md "Design Reference"). -->
+    <color name="paper">#F3EEE3</color>
+</resources>

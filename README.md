@@ -130,6 +130,23 @@ npm run check       # fitness-function checks: safe zone, dimensions, background
 
 ---
 
+## 🌅 Regenerating the splash screen
+
+The splash artwork (`app/src/main/res/drawable-*/splash_screen.png`) is rasterized from `resources/splash-screen.svg` by a dev-only Node script, mirroring the launcher-icon tooling above. It never runs as part of the Gradle build. Never hand-edit the generated PNGs — re-run the script instead.
+
+Prerequisite: Node LTS.
+
+```bash
+cd tools/splash-screen
+npm ci
+npm run generate   # renders the density-bucketed PNGs
+npm run check       # fitness-function checks: dimensions, opacity, wordmark presence, font hash, drift
+```
+
+The "Bookshelf" wordmark is rendered using a committed, version-pinned Playfair Display Bold font (`tools/splash-screen/fonts/`) rather than relying on system fonts — `resvg` silently drops the wordmark if it can't find a matching font, so `npm run check` specifically verifies wordmark pixels are present. Commit the regenerated PNG under `app/src/main/res/` whenever `resources/splash-screen.svg` changes.
+
+---
+
 ## 📄 License
 
 See [LICENSE](LICENSE).

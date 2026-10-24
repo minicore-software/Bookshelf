@@ -60,6 +60,8 @@ app/src/main/java/com/minicore/bookshelf/
  │    │    ├── ui/         # Update-progress sheet, reading log
  │    │    ├── domain/
  │    │    └── data/
+ │    ├── splash/
+ │    │    └── ui/         # Two-stage cold-start splash (BookshelfSplashScreen)
  │    └── stats/
  │         └── ui/         # Reading insights (books/pages/streak/genres)
  ├── core/
@@ -134,10 +136,12 @@ It intentionally avoids enterprise-level overengineering while keeping a scalabl
 
 ## Design Reference
 
-The product design lives in [project/](project) as a Design canvas (`project/canvas.json` + one `.dc.html` per screen): Library, Book Detail, Discover & Add, Update Progress, Reading Stats, Settings, Lend a Book, My Loans. Treat it as the source of truth for layout, copy, and the palette/type tokens below.
+> **Pending reconciliation:** [`docs/specs/Bookshelf-Visual-Spec.md`](docs/specs/Bookshelf-Visual-Spec.md) is the source of truth for colors, type, spacing and component styling going forward — it supersedes the palette/type tokens below, which are now stale. The `project/` canvas below still holds the current screen layouts and element organization; only its visual tokens are superseded. This section needs a proper rewrite once the two are reconciled.
 
-**Palette:** paper `#F3EEE3`, ink `#231F20`, forest (primary) `#2F4538`, terracotta (accent) `#C1693C`, gold (rating/finished) `#C9A227`.
-**Type:** Fraunces (serif, titles/headings) + Inter (sans, UI/body).
+The product design lives in [project/](project) as a Design canvas (`project/canvas.json` + one `.dc.html` per screen): Library, Book Detail, Discover & Add, Update Progress, Reading Stats, Settings, Lend a Book, My Loans. Treat it as the source of truth for layout, copy, and screen organization.
+
+**Palette (stale, see above):** paper `#F3EEE3`, ink `#231F20`, forest (primary) `#2F4538`, terracotta (accent) `#C1693C`, gold (rating/finished) `#C9A227`.
+**Type (stale, see above):** Fraunces (serif, titles/headings) + Inter (sans, UI/body).
 
 ---
 
