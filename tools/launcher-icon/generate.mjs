@@ -484,7 +484,10 @@ function check() {
       continue;
     }
     const xml = readFileSync(xmlPath, 'utf8');
-    if (xml !== ADAPTIVE_ICON_XML) {
+    // Normalize line endings before comparing: a fresh Windows checkout with
+    // core.autocrlf=true rewrites LF-stored files as CRLF on disk, which would
+    // otherwise register as false drift even though no content actually changed.
+    if (xml.replace(/\r\n/g, '\n') !== ADAPTIVE_ICON_XML) {
       errors.push(
         `${xmlPath}: drift detected — committed file no longer matches the generated ` +
           `adaptive-icon XML. Re-run "npm run generate" and commit the result, or revert ` +
@@ -494,7 +497,7 @@ function check() {
   }
 
   // Color resource: byte-for-byte drift, same idea as the adaptive XML above.
-  if (existsSync(colorXmlPath) && colorXml !== COLOR_XML) {
+  if (existsSync(colorXmlPath) && colorXml.replace(/\r\n/g, '\n') !== COLOR_XML) {
     errors.push(
       `${colorXmlPath}: drift detected — committed file no longer matches the generated ` +
         `color resource. Re-run "npm run generate" and commit the result, or revert the ` +
