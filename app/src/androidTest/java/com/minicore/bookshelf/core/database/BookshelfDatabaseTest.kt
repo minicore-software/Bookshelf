@@ -1,9 +1,11 @@
 package com.minicore.bookshelf.core.database
 
+import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.After
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -15,7 +17,7 @@ class BookshelfDatabaseTest {
 
     @Before
     fun createDatabase() {
-        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val context = ApplicationProvider.getApplicationContext<Context>()
         database = Room.inMemoryDatabaseBuilder(context, BookshelfDatabase::class.java).build()
     }
 
@@ -27,6 +29,6 @@ class BookshelfDatabaseTest {
     @Test
     fun opensAndClosesWithoutThrowing() {
         val writableDatabase = database.openHelper.writableDatabase
-        assert(writableDatabase.isOpen)
+        assertTrue(writableDatabase.isOpen)
     }
 }
