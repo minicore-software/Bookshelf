@@ -1,0 +1,185 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920" width="100%" height="100%">
+  <defs>
+    <!-- 1. Wall Ambient Lighting Gradient -->
+    <linearGradient id="wallGradient" x1="20%" y1="0%" x2="80%" y2="100%">
+      <stop offset="0%" stop-color="#FAF6EE" />
+      <stop offset="50%" stop-color="#EFE8D8" />
+      <stop offset="100%" stop-color="#E2D8C3" />
+    </linearGradient>
+
+    <!-- 2. Soft Ambient Vignette Overlay -->
+    <radialGradient id="wallVignette" cx="50%" cy="35%" r="70%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.4" />
+      <stop offset="60%" stop-color="#EFE8D8" stop-opacity="0" />
+      <stop offset="100%" stop-color="#A89A82" stop-opacity="0.25" />
+    </radialGradient>
+
+    <!-- 3. Soft Shadow under Shelf on the Wall -->
+    <filter id="wallShadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="16" />
+      <feOffset dx="0" dy="24" result="offsetblur" />
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.22" />
+      </feComponentTransfer>
+      <feMerge> 
+        <feMergeNode />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+
+    <!-- 4. Soft Shadow for Books & Decor -->
+    <filter id="bookShadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="2" dy="12" stdDeviation="8" flood-color="#3D3021" flood-opacity="0.18" />
+    </filter>
+
+    <!-- 5. Sun Glow Effect -->
+    <radialGradient id="sunGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FFE082" stop-opacity="0.9" />
+      <stop offset="45%" stop-color="#FFB300" stop-opacity="0.35" />
+      <stop offset="100%" stop-color="#EFE8D8" stop-opacity="0" />
+    </radialGradient>
+
+    <!-- 6. Sun Core Gradient -->
+    <linearGradient id="sunGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFE082" />
+      <stop offset="100%" stop-color="#E59400" />
+    </linearGradient>
+
+    <!-- 7. Wooden Shelf Gradient -->
+    <linearGradient id="woodGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#B87343" />
+      <stop offset="40%" stop-color="#9A5A2E" />
+      <stop offset="100%" stop-color="#6B3A19" />
+    </linearGradient>
+
+    <!-- 8. Terracotta / Ceramic Pot Gradient -->
+    <linearGradient id="potGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FAF7F2" />
+      <stop offset="100%" stop-color="#D6CEBE" />
+    </linearGradient>
+
+    <!-- 9. Subtle Texture/Line Pattern for Wall Depth -->
+    <linearGradient id="wallDiagonalShadow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#000000" stop-opacity="0.0" />
+      <stop offset="100%" stop-color="#54442B" stop-opacity="0.08" />
+    </linearGradient>
+  </defs>
+
+  <!-- WALL BACKGROUND -->
+  <rect width="1080" height="1920" fill="url(#wallGradient)" />
+  <rect width="1080" height="1920" fill="url(#wallVignette)" />
+  <rect width="1080" height="1920" fill="url(#wallDiagonalShadow)" />
+
+  <!-- Sombra Projetada Suave no topo -->
+  <path d="M 0 0 L 1080 0 L 1080 380 Q 540 220 0 380 Z" fill="#7C684B" opacity="0.05" />
+
+  <!-- TITLE & HEADER (Verde Escuro Floresta #1C3A2F + Dourado) -->
+  <g transform="translate(540, 220)">
+    <!-- Estrela Dourada Superior -->
+    <path d="M 0 -22 L 7 -7 L 22 0 L 7 7 L 0 22 L -7 7 L -22 0 L -7 -7 Z" fill="#C8963E" />
+    <!-- Linhas Laterais Douradas -->
+    <line x1="-140" y1="0" x2="-40" y2="0" stroke="#C8963E" stroke-width="2.5" stroke-linecap="round" />
+    <line x1="40" y1="0" x2="140" y2="0" stroke="#C8963E" stroke-width="2.5" stroke-linecap="round" />
+
+    <!-- Título 'Bookshelf' em Verde Escuro Nobre -->
+    <text x="0" y="115" font-family="&#39;Georgia&#39;, &#39;Playfair Display&#39;, serif" font-size="86" font-weight="bold" fill="#1C3A2F" text-anchor="middle" letter-spacing="2.5">
+      Bookshelf
+    </text>
+  </g>
+
+  <!-- COMPOSIÇÃO DA PRATELEIRA COM LIVROS E PLANTA -->
+  <g transform="translate(0, 100)" filter="url(#wallShadow)">
+    
+    <!-- GRUPO DOS LIVROS (Com sombra de profundidade) -->
+    <g filter="url(#bookShadow)">
+      <!-- Livro 1 (Verde Floresta Escuro) -->
+      <rect x="180" y="870" width="55" height="230" rx="4" fill="#1C3A2F" />
+      <rect x="180" y="870" width="8" height="230" fill="#12271F" />
+      <rect x="195" y="890" width="32" height="4" fill="#D4AF37" opacity="0.9" />
+      <polygon points="207,980 213,989 207,998 201,989" fill="none" stroke="#D4AF37" stroke-width="2" />
+
+      <!-- Livro 2 (Terracota Quente) -->
+      <rect x="240" y="840" width="60" height="260" rx="4" fill="#C85A32" />
+      <rect x="240" y="840" width="8" height="260" fill="#9E4120" />
+      <line x1="255" y1="865" x2="292" y2="865" stroke="#FAF7F2" stroke-width="3" opacity="0.75" />
+      <line x1="255" y1="875" x2="292" y2="875" stroke="#FAF7F2" stroke-width="3" opacity="0.75" />
+      <line x1="255" y1="1070" x2="292" y2="1070" stroke="#FAF7F2" stroke-width="3" opacity="0.75" />
+
+      <!-- Livro 3 (Bege/Papel Antigo) -->
+      <rect x="305" y="860" width="55" height="240" rx="4" fill="#EAE2CE" />
+      <rect x="305" y="860" width="7" height="240" fill="#D3C7B0" />
+      <line x1="320" y1="885" x2="352" y2="885" stroke="#1C3A2F" stroke-width="2" opacity="0.45" />
+
+      <!-- Livro 4 (Cinza Claro Suave) -->
+      <rect x="365" y="880" width="50" height="220" rx="4" fill="#8C9893" />
+      <rect x="365" y="880" width="7" height="220" fill="#6E7B76" />
+      <line x1="380" y1="900" x2="407" y2="900" stroke="#D4AF37" stroke-width="2" />
+
+      <!-- Livro 5 (Dourado Warm) -->
+      <rect x="420" y="900" width="55" height="200" rx="4" fill="#E5A638" />
+      <rect x="420" y="900" width="8" height="200" fill="#B88022" />
+      <line x1="435" y1="920" x2="467" y2="920" stroke="#FAF7F2" stroke-width="2.5" opacity="0.85" />
+      <line x1="435" y1="928" x2="467" y2="928" stroke="#FAF7F2" stroke-width="2.5" opacity="0.85" />
+
+      <!-- Livro 6 (Verde Sálvia) -->
+      <rect x="480" y="910" width="55" height="190" rx="4" fill="#2E5A48" />
+      <rect x="480" y="910" width="7" height="190" fill="#1F3F32" />
+      <line x1="492" y1="930" x2="528" y2="930" stroke="#D4AF37" stroke-width="2" />
+      <line x1="492" y1="1075" x2="528" y2="1075" stroke="#D4AF37" stroke-width="2" />
+
+      <!-- Livro 7 (Terracota Curto) -->
+      <rect x="540" y="920" width="45" height="180" rx="4" fill="#C85A32" />
+      <rect x="540" y="920" width="6" height="180" fill="#9E4120" />
+
+      <!-- Livro 8 (Off-White) -->
+      <rect x="590" y="930" width="40" height="170" rx="4" fill="#EAE2CE" />
+      <rect x="590" y="930" width="6" height="170" fill="#D3C7B0" />
+    </g>
+
+    <!-- PLANTA EM VASO DE CERÂMICA -->
+    <g filter="url(#bookShadow)">
+      <!-- Vasinho de Cerâmica -->
+      <ellipse cx="730" cy="1040" rx="55" ry="50" fill="url(#potGradient)" />
+      <ellipse cx="730" cy="995" rx="30" ry="8" fill="#B3A897" />
+
+      <!-- Ramos e Haste -->
+      <path d="M 730 1000 Q 735 940 730 860" fill="none" stroke="#1C3A2F" stroke-width="4" stroke-linecap="round" />
+      <path d="M 730 970 Q 690 920 640 890" fill="none" stroke="#1C3A2F" stroke-width="3.5" stroke-linecap="round" />
+      <path d="M 730 960 Q 770 910 820 880" fill="none" stroke="#1C3A2F" stroke-width="3.5" stroke-linecap="round" />
+
+      <!-- Folhas -->
+      <path d="M 730 860 Q 710 840 730 815 Q 750 840 730 860 Z" fill="#3D6852" />
+      <path d="M 728 890 Q 690 880 700 860 Q 730 870 728 890 Z" fill="#4C7862" />
+      <path d="M 732 910 Q 770 890 775 915 Q 740 925 732 910 Z" fill="#2E5240" />
+      <path d="M 640 890 Q 610 880 625 860 Q 650 875 640 890 Z" fill="#4C7862" />
+      <path d="M 670 910 Q 640 895 650 878 Q 675 895 670 910 Z" fill="#3D6852" />
+      <path d="M 820 880 Q 850 865 840 850 Q 815 865 820 880 Z" fill="#4C7862" />
+      <path d="M 780 900 Q 810 880 810 900 Q 785 910 780 900 Z" fill="#3D6852" />
+    </g>
+
+    <!-- PRATELEIRA DE MADEIRA WARM -->
+    <g>
+      <rect x="100" y="1100" width="880" height="34" rx="4" fill="url(#woodGradient)" />
+      <rect x="100" y="1100" width="880" height="5" fill="#E59E6B" opacity="0.6" />
+      <rect x="100" y="1134" width="880" height="12" fill="#3D1D09" opacity="0.55" />
+    </g>
+  </g>
+
+  <!-- PAISAGEM INFERIOR (COLINAS E SOL ILUMINADO) -->
+  <g>
+    <!-- Brilho Ambiente do Sol -->
+    <circle cx="780" cy="1550" r="280" fill="url(#sunGlow)" />
+
+    <!-- Sol Iluminado -->
+    <circle cx="780" cy="1550" r="105" fill="url(#sunGradient)" />
+
+    <!-- Camada de Colina 1 (Verde Sálvia Suave) -->
+    <path d="M 0 1620 Q 320 1520 620 1590 Q 850 1640 1080 1560 L 1080 1920 L 0 1920 Z" fill="#3E6352" />
+
+    <!-- Camada de Colina 2 (Verde Médio Acolhedor) -->
+    <path d="M 0 1680 Q 400 1610 750 1690 Q 950 1730 1080 1670 L 1080 1920 L 0 1920 Z" fill="#2B4D3E" />
+
+    <!-- Camada de Colina 3 (Verde Escuro de Base) -->
+    <path d="M 0 1760 Q 350 1700 700 1770 Q 920 1810 1080 1750 L 1080 1920 L 0 1920 Z" fill="#1C3A2F" />
+  </g>
+</svg>

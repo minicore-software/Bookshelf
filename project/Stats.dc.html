@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Bookshelf — Reading Stats</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,500&family=Inter:wght@400;500;600;700&display=swap">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+  body{margin:0;font-family:'Inter',system-ui,sans-serif;background:#F3EEE3;}
+  a{color:inherit;text-decoration:none;}
+  .nav-link:hover{opacity:0.75;}
+</style>
+</helmet>
+
+<div style="width:390px;height:844px;box-sizing:border-box;background:#F3EEE3;display:flex;flex-direction:column;overflow:hidden;position:relative;color:#231F20;">
+
+  <div style="padding:28px 20px 10px 20px;">
+    <span style="font-family:'Fraunces',serif;font-weight:600;font-size:24px;">Reading insights</span>
+  </div>
+
+  <div style="flex:1;overflow-y:auto;padding:8px 20px 20px 20px;display:flex;flex-direction:column;gap:20px;">
+
+    <!-- Year summary -->
+    <div style="background:#2F4538;border-radius:16px;padding:20px;display:flex;flex-direction:column;gap:14px;">
+      <span style="font-size:13px;color:#CBD3C6;">2026 so far</span>
+      <div style="display:flex;justify-content:space-between;">
+        <div style="display:flex;flex-direction:column;gap:2px;">
+          <span style="font-family:'Fraunces',serif;font-size:30px;font-weight:700;color:#F3EEE3;">19</span>
+          <span style="font-size:12px;color:#CBD3C6;">books finished</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:2px;">
+          <span style="font-family:'Fraunces',serif;font-size:30px;font-weight:700;color:#F3EEE3;">6,214</span>
+          <span style="font-size:12px;color:#CBD3C6;">pages read</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:2px;">
+          <span style="font-family:'Fraunces',serif;font-size:30px;font-weight:700;color:#C9A227;">12</span>
+          <span style="font-size:12px;color:#CBD3C6;">day streak</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Streak calendar -->
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <span style="font-size:13px;font-weight:600;color:#8A8274;text-transform:uppercase;letter-spacing:0.04em;">Last 7 weeks</span>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:5px;">
+        <div style="aspect-ratio:1;border-radius:4px;background:#E3DCC9;"></div><div style="aspect-ratio:1;border-radius:4px;background:#9FC2AD;"></div><div style="aspect-ratio:1;border-radius:4px;background:#3F7A5B;"></div><div style="aspect-ratio:1;border-radius:4px;background:#3F7A5B;"></div><div style="aspect-ratio:1;border-radius:4px;background:#E3DCC9;"></div><div style="aspect-ratio:1;border-radius:4px;background:#9FC2AD;"></div><div style="aspect-ratio:1;border-radius:4px;background:#3F7A5B;"></div>
+        <div style="aspect-ratio:1;border-radius:4px;background:#3F7A5B;"></div><div style="aspect-ratio:1;border-radius:4px;background:#3F7A5B;"></div><div style="aspect-ratio:1;border-radius:4px;background:#9FC2AD;"></div><div style="aspect-ratio:1;border-radius:4px;background:#3F7A5B;"></div><div style="aspect-ratio:1;border-radius:4px;background:#3F7A5B;"></div><div style="aspect-ratio:1;border-radius:4px;background:#E3DCC9;"></div><div style="aspect-ratio:1;border-radius:4px;background:#3F7A5B;"></div>
+        <div style="aspect-ratio:1;border-radius:4px;background:#3F7A5B;"></div><div style="aspect-ratio:1;border-radius:4px;background:#3F7A5B;"></div><div style="aspect-ratio:1;border-radius:4px;background:#3F7A5B;"></div><div style="aspect-ratio:1;border-radius:4px;background:#3F7A5B;"></div><div style="aspect-ratio:1;border-radius:4px;background:#3F7A5B;"></div><div style="aspect-ratio:1;border-radius:4px;background:#3F7A5B;"></div><div style="aspect-ratio:1;border-radius:4px;background:#3F7A5B;"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:11.5px;color:#8A8274;">7 weeks ago</span>
+        <div style="display:flex;align-items:center;gap:4px;">
+          <span style="font-size:11px;color:#8A8274;">Less</span>
+          <div style="width:9px;height:9px;border-radius:2px;background:#E3DCC9;"></div>
+          <div style="width:9px;height:9px;border-radius:2px;background:#9FC2AD;"></div>
+          <div style="width:9px;height:9px;border-radius:2px;background:#3F7A5B;"></div>
+          <span style="font-size:11px;color:#8A8274;">More</span>
+        </div>
+        <span style="font-size:11.5px;color:#8A8274;">Today</span>
+      </div>
+    </div>
+
+    <!-- Genre breakdown -->
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <span style="font-size:13px;font-weight:600;color:#8A8274;text-transform:uppercase;letter-spacing:0.04em;">Genres this year</span>
+      <div style="display:flex;align-items:center;gap:20px;">
+        <svg width="104" height="104" viewBox="0 0 42 42" aria-hidden="true">
+          <circle cx="21" cy="21" r="15.9" fill="transparent" stroke="#E3DCC9" stroke-width="6"/>
+          <circle cx="21" cy="21" r="15.9" fill="transparent" stroke="#2F4538" stroke-width="6" stroke-dasharray="37 63" stroke-dashoffset="25"/>
+          <circle cx="21" cy="21" r="15.9" fill="transparent" stroke="#C1693C" stroke-width="6" stroke-dasharray="26 74" stroke-dashoffset="-12"/>
+          <circle cx="21" cy="21" r="15.9" fill="transparent" stroke="#C9A227" stroke-width="6" stroke-dasharray="21 79" stroke-dashoffset="-38"/>
+          <circle cx="21" cy="21" r="15.9" fill="transparent" stroke="#5C6B8A" stroke-width="6" stroke-dasharray="16 84" stroke-dashoffset="-59"/>
+        </svg>
+        <div style="display:flex;flex-direction:column;gap:9px;flex:1;">
+          <div style="display:flex;justify-content:space-between;align-items:center;"><div style="display:flex;align-items:center;gap:8px;"><span style="width:9px;height:9px;border-radius:2px;background:#2F4538;"></span><span style="font-size:13px;color:#4A4640;">Non-fiction</span></div><span style="font-size:13px;color:#8A8274;">37%</span></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;"><div style="display:flex;align-items:center;gap:8px;"><span style="width:9px;height:9px;border-radius:2px;background:#C1693C;"></span><span style="font-size:13px;color:#4A4640;">Sci-fi</span></div><span style="font-size:13px;color:#8A8274;">26%</span></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;"><div style="display:flex;align-items:center;gap:8px;"><span style="width:9px;height:9px;border-radius:2px;background:#C9A227;"></span><span style="font-size:13px;color:#4A4640;">Literary fiction</span></div><span style="font-size:13px;color:#8A8274;">21%</span></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;"><div style="display:flex;align-items:center;gap:8px;"><span style="width:9px;height:9px;border-radius:2px;background:#5C6B8A;"></span><span style="font-size:13px;color:#4A4640;">Other</span></div><span style="font-size:13px;color:#8A8274;">16%</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pace -->
+    <div style="background:#FBF8F1;border:1px solid #E3DCC9;border-radius:14px;padding:16px;display:flex;justify-content:space-between;align-items:center;">
+      <div style="display:flex;flex-direction:column;gap:2px;">
+        <span style="font-size:13px;font-weight:600;">Average pace</span>
+        <span style="font-size:12px;color:#8A8274;">27 pages / day this month</span>
+      </div>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3F7A5B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+    </div>
+  </div>
+
+  <!-- Bottom nav -->
+  <div style="flex-shrink:0;background:#FBF8F1;border-top:1px solid #E3DCC9;display:flex;align-items:center;justify-content:space-around;padding:12px 0 18px 0;">
+    <a href="Main.dc.html" class="nav-link" aria-label="Library" style="display:flex;flex-direction:column;align-items:center;gap:3px;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9B9382" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 20V6a2 2 0 0 1 2-2h4v16"/><path d="M9 20V6a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v14"/><path d="M15 20V8a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v12"/></svg>
+      <span style="font-size:11px;color:#9B9382;">Library</span>
+    </a>
+    <a href="AddBook.dc.html" class="nav-link" aria-label="Discover" style="display:flex;flex-direction:column;align-items:center;gap:3px;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9B9382" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <span style="font-size:11px;color:#9B9382;">Discover</span>
+    </a>
+    <a href="Stats.dc.html" class="nav-link" aria-label="Stats" style="display:flex;flex-direction:column;align-items:center;gap:3px;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2F4538" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="20" x2="5" y2="12"/><line x1="12" y1="20" x2="12" y2="6"/><line x1="19" y1="20" x2="19" y2="15"/></svg>
+      <span style="font-size:11px;color:#2F4538;font-weight:600;">Stats</span>
+    </a>
+    <a href="Settings.dc.html" class="nav-link" aria-label="Settings" style="display:flex;flex-direction:column;align-items:center;gap:3px;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9B9382" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <span style="font-size:11px;color:#9B9382;">Settings</span>
+    </a>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

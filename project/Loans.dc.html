@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Bookshelf — My Loans</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,500&family=Inter:wght@400;500;600;700&display=swap">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+  body{margin:0;font-family:'Inter',system-ui,sans-serif;background:#F3EEE3;}
+  a{color:inherit;text-decoration:none;}
+  .row:hover{background:#F6F2E8;}
+  .btn-ghost:hover{background:#EDE5D3;}
+</style>
+</helmet>
+
+<div style="width:390px;height:844px;box-sizing:border-box;background:#F3EEE3;display:flex;flex-direction:column;overflow:hidden;position:relative;color:#231F20;">
+
+  <!-- Header -->
+  <div style="padding:28px 20px 16px 20px;display:flex;align-items:center;gap:14px;">
+    <a href="Main.dc.html" aria-label="Back to library" style="width:36px;height:36px;border-radius:50%;background:#FBF8F1;border:1px solid #E3DCC9;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#2F4538" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+    </a>
+    <span style="font-family:'Fraunces',serif;font-weight:600;font-size:22px;">My loans</span>
+  </div>
+
+  <div style="flex:1;overflow-y:auto;padding:4px 20px 24px 20px;display:flex;flex-direction:column;gap:22px;">
+
+    <!-- Summary -->
+    <div style="display:flex;gap:10px;">
+      <div style="flex:1;background:#FBF8F1;border:1px solid #E3DCC9;border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:2px;">
+        <span style="font-family:'Fraunces',serif;font-size:22px;font-weight:700;color:#2F4538;">3</span>
+        <span style="font-size:11.5px;color:#8A8274;">on loan</span>
+      </div>
+      <div style="flex:1;background:#FBF4EE;border:1px solid #E6CFC0;border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:2px;">
+        <span style="font-family:'Fraunces',serif;font-size:22px;font-weight:700;color:#9B2C2C;">1</span>
+        <span style="font-size:11.5px;color:#8A8274;">overdue</span>
+      </div>
+      <div style="flex:1;background:#FBF8F1;border:1px solid #E3DCC9;border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:2px;">
+        <span style="font-family:'Fraunces',serif;font-size:22px;font-weight:700;">12</span>
+        <span style="font-size:11.5px;color:#8A8274;">returned this year</span>
+      </div>
+    </div>
+
+    <!-- Overdue -->
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <span style="font-size:13px;font-weight:600;color:#9B2C2C;text-transform:uppercase;letter-spacing:0.04em;">Overdue</span>
+
+      <div class="row" style="display:flex;gap:12px;padding:12px;border-radius:12px;background:#FBF4EE;border:1px solid #E6CFC0;">
+        <div style="width:48px;height:70px;border-radius:5px;background:#5C6B8A;flex-shrink:0;"></div>
+        <div style="display:flex;flex-direction:column;gap:3px;flex:1;min-width:0;">
+          <span style="font-size:14px;font-weight:600;line-height:1.3;">Klara and the Sun</span>
+          <span style="font-size:12.5px;color:#4A4640;">With Diego Alves</span>
+          <span style="font-size:12px;color:#9B2C2C;font-weight:600;">Due Oct 22 · 2 days overdue</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;justify-content:center;flex-shrink:0;">
+          <button class="btn-ghost" style="font-size:11.5px;font-weight:600;color:#2F4538;background:#EDE5D3;border:none;border-radius:8px;padding:6px 10px;">Remind</button>
+          <button class="btn-ghost" style="font-size:11.5px;font-weight:600;color:#2F4538;background:#EDE5D3;border:none;border-radius:8px;padding:6px 10px;">Returned</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- On loan -->
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <span style="font-size:13px;font-weight:600;color:#8A8274;text-transform:uppercase;letter-spacing:0.04em;">On loan</span>
+
+      <div class="row" style="display:flex;gap:12px;padding:12px;border-radius:12px;background:#FBF8F1;border:1px solid #E3DCC9;">
+        <div style="width:48px;height:70px;border-radius:5px;background:#B99A2E;flex-shrink:0;"></div>
+        <div style="display:flex;flex-direction:column;gap:3px;flex:1;min-width:0;">
+          <span style="font-size:14px;font-weight:600;line-height:1.3;">Sapiens</span>
+          <span style="font-size:12.5px;color:#4A4640;">With Priya Nair</span>
+          <span style="font-size:12px;color:#C1693C;">Due in 3 days · Nov 21</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;justify-content:center;flex-shrink:0;">
+          <button class="btn-ghost" style="font-size:11.5px;font-weight:600;color:#2F4538;background:#EDE5D3;border:none;border-radius:8px;padding:6px 10px;">Remind</button>
+          <button class="btn-ghost" style="font-size:11.5px;font-weight:600;color:#2F4538;background:#EDE5D3;border:none;border-radius:8px;padding:6px 10px;">Returned</button>
+        </div>
+      </div>
+
+      <div class="row" style="display:flex;gap:12px;padding:12px;border-radius:12px;background:#FBF8F1;border:1px solid #E3DCC9;">
+        <div style="width:48px;height:70px;border-radius:5px;background:#6B4A63;flex-shrink:0;"></div>
+        <div style="display:flex;flex-direction:column;gap:3px;flex:1;min-width:0;">
+          <span style="font-size:14px;font-weight:600;line-height:1.3;">Pachinko</span>
+          <span style="font-size:12.5px;color:#4A4640;">With Sofia Reyes</span>
+          <span style="font-size:12px;color:#8A8274;">Due in 11 days · Nov 29</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;justify-content:center;flex-shrink:0;">
+          <button class="btn-ghost" style="font-size:11.5px;font-weight:600;color:#2F4538;background:#EDE5D3;border:none;border-radius:8px;padding:6px 10px;">Remind</button>
+          <button class="btn-ghost" style="font-size:11.5px;font-weight:600;color:#2F4538;background:#EDE5D3;border:none;border-radius:8px;padding:6px 10px;">Returned</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recently returned -->
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <span style="font-size:13px;font-weight:600;color:#8A8274;text-transform:uppercase;letter-spacing:0.04em;">Recently returned</span>
+
+      <div style="display:flex;gap:12px;padding:12px;border-radius:12px;">
+        <div style="width:48px;height:70px;border-radius:5px;background:#7A8559;flex-shrink:0;opacity:0.6;"></div>
+        <div style="display:flex;flex-direction:column;gap:3px;flex:1;min-width:0;justify-content:center;">
+          <span style="font-size:14px;font-weight:600;line-height:1.3;color:#6B655C;">Braiding Sweetgrass</span>
+          <span style="font-size:12px;color:#8A8274;">Returned by Marta Lima · Oct 18</span>
+        </div>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3F7A5B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="align-self:center;flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>
