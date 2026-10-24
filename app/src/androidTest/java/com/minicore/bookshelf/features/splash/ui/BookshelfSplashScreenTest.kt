@@ -15,19 +15,18 @@ import org.junit.Rule
 import org.junit.Test
 
 /**
- * Timing is asserted against the real/wall clock rather than
- * [androidx.compose.ui.test.MainTestClock]: attempts to drive this with the virtual
- * clock (`mainClock.advanceTimeBy`, with and without `autoAdvance = false`) did not
- * reliably control the `delay()`-based `LaunchedEffect` on this project's Compose
- * BOM — see docs/plans/9-splash-screen.md's "Known Deviations" section for exactly
- * what was observed. Falling back to the real clock, the lower bound is exact: a
- * real `delay(600)` cannot resolve less than 600ms after `startNanos`, which is
- * captured during composition, before the effect even starts. The upper bound
- * stays generous to absorb test-environment scheduling jitter without masking a
- * stuck/looping effect.
+ * Timing is asserted against [androidx.compose.ui.test.MainTestClock] with
+ * `autoAdvance = false`, driving the `delay()`-based `LaunchedEffect` explicitly via
+ * `advanceTimeBy(millis, ignoreFrameDuration = true)`. `ignoreFrameDuration = true` is
+ * required: the default (`false`) rounds the requested advance *up* to a whole number
+ * of 16ms frames (`ceil(millis / 16) * 16`), so e.g. `advanceTimeBy(599)` actually
+ * advances 608ms — past the 600ms duration — making a sub-duration assertion
+ * impossible to express that way. With `ignoreFrameDuration = true` the clock advances
+ * by exactly the requested virtual milliseconds, so `advanceTimeBy(SPLASH_DURATION_MS
+ * - 1)` is guaranteed to land strictly before the `delay(600)` resolves and the final
+ * `advanceTimeBy(1)` is guaranteed to land exactly on it — deterministically, with no
+ * dependency on real wall-clock scheduling or test-environment jitter.
  */
-private const val UPPER_BOUND_SLACK_MS = 1_000L
-
 class BookshelfSplashScreenTest {
 
     @get:Rule
@@ -38,37 +37,18 @@ class BookshelfSplashScreenTest {
     @Test
     fun onCompleteFiresExactlyOnce_notBeforeTheDurationElapses() {
         var completedCount = 0
-        var completedAtNanos = 0L
-        var startNanos = 0L
+        composeRule.mainClock.autoAdvance = false
 
         composeRule.setContent {
-            // Captured on first composition rather than before setContent(), so the
-            // measurement excludes Compose test environment startup overhead and only
-            // covers the composable's own delay.
-            startNanos = remember { System.nanoTime() }
-            BookshelfSplashScreen(onComplete = {
-                completedCount++
-                completedAtNanos = System.nanoTime()
-            })
+            BookshelfSplashScreen(onComplete = { completedCount++ })
         }
 
         composeRule.onNodeWithTag(SPLASH_SCREEN_TEST_TAG).assertExists()
 
-        composeRule.waitUntil(timeoutMillis = SPLASH_DURATION_MS + 5_000) { completedCount > 0 }
+        composeRule.mainClock.advanceTimeBy(SPLASH_DURATION_MS - 1, ignoreFrameDuration = true)
+        assertEquals(0, completedCount)
 
-        val elapsedMs = (completedAtNanos - startNanos) / 1_000_000
-        assertTrue(
-            "expected onComplete at least ${SPLASH_DURATION_MS}ms after start, " +
-                "was ${elapsedMs}ms",
-            elapsedMs >= SPLASH_DURATION_MS
-        )
-        assertTrue(
-            "expected onComplete less than ${SPLASH_DURATION_MS + UPPER_BOUND_SLACK_MS}ms " +
-                "after start, was ${elapsedMs}ms",
-            elapsedMs < SPLASH_DURATION_MS + UPPER_BOUND_SLACK_MS
-        )
-
-        // Give any spurious extra firing a chance to show up before asserting the count.
+        composeRule.mainClock.advanceTimeBy(1, ignoreFrameDuration = true)
         composeRule.waitForIdle()
         assertEquals(1, completedCount)
     }

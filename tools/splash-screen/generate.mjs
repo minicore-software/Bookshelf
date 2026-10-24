@@ -28,11 +28,14 @@ const FONT_PATH = join(SCRIPT_DIR, 'fonts', 'PlayfairDisplay-Bold.ttf');
 
 const SOURCE_SIZE = { width: 1080, height: 1920 };
 // Source: Fontsource's Playfair Display latin-subset static build, weight 700
-// (Bold), version 1.203 (per the font's own name table) —
-// https://cdn.jsdelivr.net/fontsource/fonts/playfair-display@latest/latin-700-normal.ttf
-// Re-download that exact file to verify/regenerate; do not substitute the full
-// Google Fonts variable-font build, which hashes differently. Verified
-// 2026-10-24: downloading that URL reproduces this exact SHA-256.
+// (Bold), font version 1.203 (per the font's own name table), from the
+// fontsource npm package version 5.3.0 —
+// https://cdn.jsdelivr.net/fontsource/fonts/playfair-display@5.3.0/latin-700-normal.ttf
+// Pinned to this package version (not @latest) so re-downloading reproduces
+// the same file even after Fontsource publishes a newer package. Re-download
+// that exact URL to verify/regenerate; do not substitute the full Google
+// Fonts variable-font build, which hashes differently. Verified 2026-10-24:
+// downloading that URL reproduces this exact SHA-256.
 const FONT_SHA256 = '36be40f50b34ae2da51608e36eae9eeaf90202d7395fa1be0186f7e257af62cc';
 const BASE_DP = { width: 360, height: 640 };
 

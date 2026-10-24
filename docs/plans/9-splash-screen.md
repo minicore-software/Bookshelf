@@ -315,27 +315,26 @@ None blocking. For the user's attention at review, not before building:
 Section 12's test strategy for AC3 called for driving `BookshelfSplashScreenTest`
 with `composeRule.mainClock.autoAdvance = false` and `advanceTimeBy(599)` /
 `advanceTimeBy(1)` to deterministically control the `delay(600)` inside
-`BookshelfSplashScreen`'s `LaunchedEffect`. In practice this did not hold up:
+`BookshelfSplashScreen`'s `LaunchedEffect`. An earlier revision of this plan
+recorded that technique as unreliable and fell back to wall-clock assertions
+(`System.nanoTime()` deltas with a generous upper-bound slack constant). That
+was a misdiagnosis, not a real Compose BOM limitation.
 
-- With `mainClock.autoAdvance = false` and explicit `advanceTimeBy(...)` calls,
-  the `delay()`-based effect still resolved as soon as any Compose test
-  synchronization point ran (e.g. `onNodeWithTag(...).assertExists()`), rather
-  than only after the requested virtual-time advance. The effect completed in a
-  single `advanceTimeBy` call regardless of the millis passed in.
-- With `autoAdvance` left at its default (`true`), the same thing happened:
-  idling/sync points drained the effect immediately.
-- In both cases, "immediately" was measured against the real clock, not literal
-  zero: a mutation of the delay down to 100ms produced measured elapsed times
-  around ~239ms (test-environment overhead), not the ~600ms the virtual-time
-  plan expected and not ~0ms either. This is what revealed the mismatch — the
-  virtual clock was not actually gating the effect the way `advanceTimeBy`
-  implies it should.
+The actual cause: `MainTestClock.advanceTimeBy(millis, ignoreFrameDuration =
+false)` — the default overload used in the earlier attempt — rounds the
+requested advance *up* to a whole number of 16ms frames
+(`ceil(millis / 16) * 16`). `advanceTimeBy(599)` therefore actually advances
+608ms of virtual time, which is past the 600ms `delay()`, so the effect fired
+on what looked like the "before duration elapses" step. That misread as "the
+virtual clock doesn't gate the effect"; it does, but the earlier code was
+advancing further than intended.
 
-Given this, the shipped tests (`BookshelfSplashScreenTest`) assert timing on the
-real/wall clock instead, measuring `System.nanoTime()` from first composition to
-`onComplete`, with an exact lower bound (`elapsedMs >= SPLASH_DURATION_MS`, since
-a real `delay(600)` cannot resolve earlier than that) and a generous upper bound
-(`elapsedMs < SPLASH_DURATION_MS + 1_000`) to absorb test-environment scheduling
-jitter. The `onNodeWithTag(...).assertExists()` call used as a sync point does
-not resolve the delay for free — it still costs real wall-clock time — so it does
-not make the measurement meaningless, just subject to normal device/CI jitter.
+The fix is to pass `ignoreFrameDuration = true`, which advances the clock by
+exactly the requested virtual milliseconds with no frame rounding. With
+`autoAdvance = false` and `ignoreFrameDuration = true`,
+`advanceTimeBy(SPLASH_DURATION_MS - 1)` is guaranteed to land strictly before
+the `delay(600)` resolves, and the subsequent `advanceTimeBy(1)` lands exactly
+on it — deterministic virtual-clock control, as originally planned in section
+12, with no dependency on wall-clock scheduling or test-environment jitter.
+`BookshelfSplashScreenTest` now uses this technique and there is no remaining
+deviation from section 12 worth tracking.
