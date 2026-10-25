@@ -33,3 +33,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reproducible `tools/fraunces-font/generate.py` script (`generate` / `check`),
   pinned to a source commit and fonttools version, with its OFL license bundled
   under `app/src/main/assets/licenses/`. Closes out epic #6 (App Bootstrap).
+- Library header wordmark: a Compose-built header replacing the placeholder
+  "Bookshelf" title — a `BrandMark` tile, the Fraunces "Bookshelf" title, and an
+  Inter tagline, plus a search bar styled as a clickable, no-op `Row` (not a
+  real `TextField`) matching the design reference. New `ink_muted`/
+  `paper_bright`/`line` colour tokens in `core/designsystem/`. Bundles a new
+  static Inter Regular font (`app/src/main/res/font/inter_regular.ttf`) with
+  its SIL OFL 1.1 license under `app/src/main/assets/licenses/`. Closes #10.
