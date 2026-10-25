@@ -8,14 +8,12 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.minicore.bookshelf.core.designsystem.BookshelfTheme
 import com.minicore.bookshelf.features.splash.ui.BookshelfSplashScreen
@@ -24,11 +22,6 @@ import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
-
-    // Test seam only (F1): lets instrumented tests assert the real NavController's current
-    // route without the navigation graph needing to expose it otherwise.
-    internal var navController: NavHostController? = null
-        private set
 
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
@@ -47,9 +40,7 @@ class MainActivity : ComponentActivity() {
                     BookshelfSplashScreen(onComplete = { splashCompleted = true })
                 } else {
                     Surface(modifier = Modifier.fillMaxSize()) {
-                        val controller = rememberNavController()
-                        SideEffect { navController = controller }
-                        BookshelfNavGraph(controller)
+                        BookshelfNavGraph(rememberNavController())
                     }
                 }
             }
