@@ -20,7 +20,7 @@ import com.minicore.bookshelf.core.designsystem.BookshelfTheme
  *   ticket adds no navigation, so `BookshelfNavGraph` mounts this screen without wiring one yet.
  */
 @Composable
-fun LibraryScreen(onSearchClick: () -> Unit = {}, modifier: Modifier = Modifier) {
+fun LibraryScreen(modifier: Modifier = Modifier, onSearchClick: () -> Unit = {}) {
     Column(
         modifier = modifier
             .fillMaxSize()

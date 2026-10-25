@@ -54,9 +54,12 @@ class LibraryHeaderTest {
         get() = InstrumentationRegistry.getInstrumentation().targetContext
             .getString(R.string.library_search_placeholder)
 
-    // F3: brand-mark is 38x38dp, and the title sits 14dp to its right, vertically centered.
+    // F3: brand-mark is 38x38dp; the title+tagline text block sits 14dp to its right, with the
+    // block's vertical center aligned to the mark's vertical center (the PNG lockup: the mark is
+    // centered against the whole text block, not just the title), and the title's cap-top close
+    // to the mark's top.
     @Test
-    fun brandMarkAndTitle_areSizedAndAlignedPerSpec() {
+    fun brandMarkAndTextBlock_areSizedAndAlignedPerSpec() {
         composeRule.setContent {
             BookshelfTheme {
                 Surface {
@@ -72,11 +75,13 @@ class LibraryHeaderTest {
         val markBounds = composeRule.onNodeWithTag(LIBRARY_BRAND_MARK_TEST_TAG)
             .fetchSemanticsNode().boundsInRoot
         val titleBounds = composeRule.onNodeWithText(title).fetchSemanticsNode().boundsInRoot
+        val taglineBounds = composeRule.onNodeWithText(tagline).fetchSemanticsNode().boundsInRoot
 
         val density = InstrumentationRegistry.getInstrumentation().targetContext.resources.displayMetrics.density
         val gapPx = 14.dp.value * density
         val tolerancePx = 1.dp.value * density
         val verticalTolerancePx = 2.dp.value * density
+        val capTopTolerancePx = 10.dp.value * density
 
         assertTrue(
             "title left edge (${titleBounds.left}) must be mark's right edge " +
@@ -84,12 +89,21 @@ class LibraryHeaderTest {
             abs(titleBounds.left - (markBounds.right + gapPx)) <= tolerancePx
         )
 
+        val textBlockTop = minOf(titleBounds.top, taglineBounds.top)
+        val textBlockBottom = maxOf(titleBounds.bottom, taglineBounds.bottom)
+        val textBlockCenterY = (textBlockTop + textBlockBottom) / 2
         val markCenterY = markBounds.top + markBounds.height / 2
-        val titleCenterY = titleBounds.top + titleBounds.height / 2
+
         assertTrue(
-            "mark center-y ($markCenterY) and title center-y ($titleCenterY) must be within " +
-                "$verticalTolerancePx px",
-            abs(markCenterY - titleCenterY) <= verticalTolerancePx
+            "text block center-y ($textBlockCenterY) and mark center-y ($markCenterY) must be " +
+                "within $verticalTolerancePx px",
+            abs(textBlockCenterY - markCenterY) <= verticalTolerancePx
+        )
+
+        assertTrue(
+            "title top (${titleBounds.top}) must be close to the mark's top (${markBounds.top}) " +
+                "within $capTopTolerancePx px",
+            abs(titleBounds.top - markBounds.top) <= capTopTolerancePx
         )
     }
 
@@ -247,6 +261,56 @@ class LibraryHeaderTest {
         composeRule.onNodeWithTag(LIBRARY_BRAND_MARK_TEST_TAG)
             .assertWidthIsEqualTo(38.dp)
             .assertHeightIsEqualTo(38.dp)
+    }
+
+    // Critical 2 (review): the glyph itself (not just the tile) stays centered and fully inside
+    // the tile at 2x font scale. Before the fix, titleLarge's lineHeight (28sp) still scaled with
+    // the system font size even though fontSize was pinned, sinking/shrinking the glyph.
+    @Test
+    fun brandMarkGlyph_staysCenteredAndInsideTile_atDoubleFontScale() {
+        composeRule.setContent {
+            DeviceConfigurationOverride(DeviceConfigurationOverride.FontScale(2f)) {
+                BookshelfTheme {
+                    Surface {
+                        LibraryHeader(onSearchClick = {})
+                    }
+                }
+            }
+        }
+
+        val markBounds = composeRule.onNodeWithTag(LIBRARY_BRAND_MARK_TEST_TAG)
+            .fetchSemanticsNode().boundsInRoot
+
+        // Unmerged tree: this inspects layout, not accessibility exposure (F13 already proves
+        // the glyph text is hidden from the merged/TalkBack tree).
+        val brandMarkGlyph = InstrumentationRegistry.getInstrumentation().targetContext
+            .getString(R.string.brand_mark_initial)
+        val glyphBounds = composeRule.onNodeWithText(brandMarkGlyph, useUnmergedTree = true)
+            .fetchSemanticsNode().boundsInRoot
+
+        val density = InstrumentationRegistry.getInstrumentation().targetContext.resources.displayMetrics.density
+        val tolerancePx = 1.dp.value * density
+
+        assertTrue(
+            "glyph bounds ($glyphBounds) must be fully inside the tile bounds ($markBounds) " +
+                "at 2x font scale",
+            glyphBounds.left >= markBounds.left - tolerancePx &&
+                glyphBounds.right <= markBounds.right + tolerancePx &&
+                glyphBounds.top >= markBounds.top - tolerancePx &&
+                glyphBounds.bottom <= markBounds.bottom + tolerancePx
+        )
+
+        val glyphCenterX = glyphBounds.left + glyphBounds.width / 2
+        val glyphCenterY = glyphBounds.top + glyphBounds.height / 2
+        val markCenterX = markBounds.left + markBounds.width / 2
+        val markCenterY = markBounds.top + markBounds.height / 2
+
+        assertTrue(
+            "glyph center ($glyphCenterX,$glyphCenterY) must be within $tolerancePx px of the " +
+                "tile center ($markCenterX,$markCenterY)",
+            abs(glyphCenterX - markCenterX) <= tolerancePx &&
+                abs(glyphCenterY - markCenterY) <= tolerancePx
+        )
     }
 
     // F15: the search bar is at least 48dp tall, spans the header width minus 2x20dp padding,

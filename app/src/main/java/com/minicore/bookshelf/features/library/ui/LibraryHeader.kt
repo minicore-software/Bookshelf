@@ -16,8 +16,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
@@ -30,7 +32,9 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.minicore.bookshelf.R
 import com.minicore.bookshelf.core.designsystem.BookshelfTheme
 
@@ -40,6 +44,7 @@ const val LIBRARY_SEARCH_BAR_TEST_TAG = "library_search_bar"
 
 private val BrandMarkSize = 38.dp
 private val HeaderHorizontalPadding = 20.dp
+private val SearchBarShape = RoundedCornerShape(14.dp)
 
 /**
  * The Library screen's header: brand-mark/title/tagline wordmark, plus a stub search bar below
@@ -67,30 +72,29 @@ fun LibraryHeader(onSearchClick: () -> Unit, modifier: Modifier = Modifier) {
 
 @Composable
 private fun Wordmark(modifier: Modifier = Modifier) {
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            BrandMark()
+    Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
+        BrandMark()
+        Column(
+            modifier = Modifier.padding(start = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
             Text(
                 text = stringResource(R.string.app_name),
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier
-                    .padding(start = 14.dp)
-                    .semantics { heading() },
+                modifier = Modifier.semantics { heading() },
+            )
+            Text(
+                text = stringResource(R.string.library_tagline),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        Text(
-            text = stringResource(R.string.library_tagline),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(start = BrandMarkSize + 14.dp),
-        )
     }
 }
 
 @Composable
 private fun BrandMark(modifier: Modifier = Modifier) {
-    val density = LocalDensity.current
     Box(
         modifier = modifier
             .testTag(LIBRARY_BRAND_MARK_TEST_TAG)
@@ -99,15 +103,19 @@ private fun BrandMark(modifier: Modifier = Modifier) {
             .clearAndSetSemantics {},
         contentAlignment = Alignment.Center,
     ) {
-        // A fixed, non-scaling glyph size: this is a decorative logotype inside a fixed-size
-        // tile, not real text, so it must never overflow the tile at large font scales (plan H9,
-        // risk R3). The surrounding real text (title, tagline, placeholder) scales normally.
-        val glyphSize = with(density) { 19.dp.toSp() }
-        Text(
-            text = stringResource(R.string.brand_mark_initial),
-            style = MaterialTheme.typography.titleLarge.copy(fontSize = glyphSize),
-            color = MaterialTheme.colorScheme.onPrimary,
-        )
+        // A fixed, non-scaling glyph: this is a decorative logotype inside a fixed-size tile,
+        // not real text, so it must never overflow/sink in the tile at large font scales (plan
+        // H9, risk R3). Pinning fontScale to 1f (not just fontSize) also pins lineHeight, which
+        // otherwise still scales with the system font size and pushes the glyph off-center. The
+        // surrounding real text (title, tagline, placeholder) scales normally.
+        val baseDensity = LocalDensity.current
+        CompositionLocalProvider(LocalDensity provides Density(baseDensity.density, fontScale = 1f)) {
+            Text(
+                text = stringResource(R.string.brand_mark_initial),
+                style = MaterialTheme.typography.titleLarge.copy(fontSize = 19.sp, lineHeight = 19.sp),
+                color = MaterialTheme.colorScheme.onPrimary,
+            )
+        }
     }
 }
 
@@ -119,8 +127,9 @@ private fun LibrarySearchBar(onClick: () -> Unit, modifier: Modifier = Modifier)
             .testTag(LIBRARY_SEARCH_BAR_TEST_TAG)
             .fillMaxWidth()
             .heightIn(min = 48.dp)
-            .background(MaterialTheme.colorScheme.surfaceContainerLowest, RoundedCornerShape(14.dp))
-            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(14.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerLowest, SearchBarShape)
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, SearchBarShape)
+            .clip(SearchBarShape)
             .clickable(onClickLabel = clickLabel, role = Role.Button, onClick = onClick)
             .padding(horizontal = 14.dp),
         verticalAlignment = Alignment.CenterVertically,

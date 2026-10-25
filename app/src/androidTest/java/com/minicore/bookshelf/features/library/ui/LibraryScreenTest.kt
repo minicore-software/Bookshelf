@@ -45,9 +45,9 @@ class LibraryScreenTest {
             .getString(R.string.library_search_placeholder)
 
     // F1/AC1: the avatar and greeting are gone — no node has "MT", "Good evening" or
-    // "Marco's Shelf" — and the only non-text graphic in the lockup is the brand-mark tile.
+    // "Marco's Shelf" — and the brand-mark tile is displayed in their place.
     @Test
-    fun libraryScreen_showsOnlyTheTitle() {
+    fun libraryScreen_hasNoAvatarOrGreeting() {
         composeRule.setContent {
             BookshelfTheme {
                 LibraryScreen()
