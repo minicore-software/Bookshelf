@@ -9,7 +9,10 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.test.onChildren
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.font.FontFamily
@@ -17,6 +20,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.test.platform.app.InstrumentationRegistry
 import com.minicore.bookshelf.R
 import com.minicore.bookshelf.core.designsystem.BookshelfTheme
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -43,10 +47,13 @@ class LibraryScreenTest {
         composeRule.onNodeWithText(title).assertIsDisplayed()
         composeRule.onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsProperties.Text))
             .assertCountEquals(1)
+        composeRule.onRoot(useUnmergedTree = true).onChildren().assertCountEquals(1)
     }
 
     // F3/FF1: the title really renders in Fraunces, not a fallback, and the rendered node's
-    // measured width matches a Fraunces-only measurement within a 2% relative tolerance.
+    // measured width matches a Fraunces-only measurement within 1px. The fallback widths must
+    // each differ from the Fraunces width by more than that same tolerance, so a fallback that
+    // happens to land within the tolerance can't slip past the "differs from fallback" checks.
     @Test
     fun libraryScreen_titleRendersInFraunces_matchingMeasuredWidth() {
         var frauncesResult: TextLayoutResult? = null
@@ -72,22 +79,24 @@ class LibraryScreenTest {
         val frauncesWidth = frauncesResult!!.size.width
         val defaultWidth = defaultResult!!.size.width
         val serifWidth = serifResult!!.size.width
+        val tolerancePx = 1
 
         assertTrue(
-            "Fraunces width ($frauncesWidth) must differ from FontFamily.Default ($defaultWidth)",
-            frauncesWidth != defaultWidth
+            "Fraunces width ($frauncesWidth) must differ from FontFamily.Default ($defaultWidth) " +
+                "by more than $tolerancePx px, a near-miss fallback must not slip through",
+            abs(frauncesWidth - defaultWidth) > tolerancePx
         )
         assertTrue(
-            "Fraunces width ($frauncesWidth) must differ from FontFamily.Serif ($serifWidth)",
-            frauncesWidth != serifWidth
+            "Fraunces width ($frauncesWidth) must differ from FontFamily.Serif ($serifWidth) " +
+                "by more than $tolerancePx px, a near-miss fallback must not slip through",
+            abs(frauncesWidth - serifWidth) > tolerancePx
         )
 
         val renderedWidth = composeRule.onNodeWithText(title).fetchSemanticsNode().size.width
-        val relativeDiff = abs(renderedWidth - frauncesWidth).toFloat() / frauncesWidth
         assertTrue(
             "rendered width ($renderedWidth) must match the Fraunces measurement " +
-                "($frauncesWidth) within 2%, was ${relativeDiff * 100}%",
-            relativeDiff <= 0.02f
+                "($frauncesWidth) within $tolerancePx px",
+            abs(renderedWidth - frauncesWidth) <= tolerancePx
         )
     }
 
@@ -108,7 +117,6 @@ class LibraryScreenTest {
         composeRule.onNodeWithText(title).assertIsDisplayed()
 
         val node = composeRule.onNodeWithText(title).fetchSemanticsNode()
-        val rootWidth = composeRule.onRoot().fetchSemanticsNode().size.width
 
         assertTrue(
             "title node should carry heading semantics",
@@ -118,9 +126,34 @@ class LibraryScreenTest {
             "title must not be clipped to zero width at 2x font scale",
             node.size.width == 0
         )
+
+        val textLayoutResults = mutableListOf<TextLayoutResult>()
+        node.config.getOrNull(SemanticsActions.GetTextLayoutResult)
+            ?.action
+            ?.invoke(textLayoutResults)
+        val layoutResult = textLayoutResults.single()
+
+        assertEquals(
+            "title must render on a single line at 2x font scale, not wrap",
+            1,
+            layoutResult.lineCount
+        )
+
+        // Not `layoutResult.hasVisualOverflow`/`didOverflowWidth`: per the real implementation
+        // (`didOverflowWidth = size.width < multiParagraph.width`), that flag compares the
+        // Text's own shrink-wrapped box against the *maximum* width budget it was offered, not
+        // against its unconstrained natural width. For a Text with no `fillMaxWidth()` (like
+        // this title), `size.width` is virtually always smaller than the offered budget, so the
+        // flag is true essentially unconditionally here and does not indicate real clipping.
+        // Clipping would only actually occur if the natural, unbreakable word needed more width
+        // than the Box could offer, in which case Compose clamps `node.size.width` to exactly
+        // that offered budget (`layoutInput.constraints.maxWidth`). A *strict* less-than check
+        // against that budget is therefore the real "did not need to clip" signal.
         assertTrue(
-            "title width (${node.size.width}) must fit within the root (${rootWidth})",
-            node.size.width <= rootWidth
+            "title width (${node.size.width}px) must fit strictly within the available width " +
+                "(${layoutResult.layoutInput.constraints.maxWidth}px) at 2x font scale, or it " +
+                "was clamped/clipped",
+            node.size.width < layoutResult.layoutInput.constraints.maxWidth
         )
     }
 }
