@@ -15,6 +15,9 @@ internal fun bookshelfColorScheme(): ColorScheme {
     val paper = colorResource(R.color.paper)
     val ink = colorResource(R.color.ink)
     val forest = colorResource(R.color.forest)
+    val inkMuted = colorResource(R.color.ink_muted)
+    val paperBright = colorResource(R.color.paper_bright)
+    val line = colorResource(R.color.line)
 
     return lightColorScheme(
         primary = forest,
@@ -23,5 +26,8 @@ internal fun bookshelfColorScheme(): ColorScheme {
         onBackground = ink,
         surface = paper,
         onSurface = ink,
+        onSurfaceVariant = inkMuted,
+        outlineVariant = line,
+        surfaceContainerLowest = paperBright,
     )
 }
