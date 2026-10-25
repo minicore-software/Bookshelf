@@ -57,6 +57,19 @@ class LibraryContrastTest {
     @Test
     fun inkSoft_onPaper_passesAA() = assertAA("ink_soft", "ink_soft", "paper")
 
+    // Library grid filter chips (BOOKSHELF-0021, plan FF3): paper on forest (selected chip) and
+    // ink_soft on paper_bright (unselected chip) must pass AA for 13sp text.
+    @Test
+    fun paper_onForest_selectedChip_passesAA() = assertAA("paper", "paper", "forest")
+
+    @Test
+    fun inkSoft_onPaperBright_unselectedChip_passesAA() = assertAA("ink_soft", "ink_soft", "paper_bright")
+
+    // The dot fills (status_reading, gold, status_want_to_read) are deliberately NOT asserted
+    // here - the mock's own values fall below WCAG 1.4.11's 3:1 non-text contrast guideline for
+    // two of the three (finished 2.09:1, want-to-read 2.75:1), and that is accepted as mocked,
+    // not a defect (plan G7, section 12, Q10).
+
     @Test
     fun everyCoverBackground_passesAA_againstItsAssignedForeground() {
         // Mirrors Color.kt's bookshelfExtendedColors() pairing (plan R2).

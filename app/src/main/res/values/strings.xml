@@ -27,4 +27,16 @@
         <item quantity="other">Overdue %d days</item>
     </plurals>
     <string name="library_loan_due_on">Due %s</string>
+
+    <!-- Library grid (BOOKSHELF-0021) -->
+    <string name="library_filter_all">All · %d</string>
+    <string name="library_filter_reading">Reading · %d</string>
+    <string name="library_filter_finished">Finished · %d</string>
+    <string name="library_filter_want_to_read">Want to read · %d</string>
+    <string name="library_filter_lent_out">Lent out · %d</string>
+    <string name="library_grid_title">Your library</string>
+    <string name="library_grid_lent_to">Lent to %s</string>
+    <string name="library_status_reading">Reading</string>
+    <string name="library_status_finished">Finished</string>
+    <string name="library_status_want_to_read">Want to read</string>
 </resources>

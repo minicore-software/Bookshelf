@@ -23,5 +23,6 @@ fun LibraryRoute(
         onSearchClick = onSearchClick,
         onBookClick = onBookClick,
         onSeeAllLoansClick = onSeeAllLoansClick,
+        onFilterSelected = viewModel::onFilterSelected,
     )
 }

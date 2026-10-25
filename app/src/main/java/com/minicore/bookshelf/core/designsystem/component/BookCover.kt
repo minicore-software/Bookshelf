@@ -4,7 +4,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -26,23 +28,32 @@ import com.minicore.bookshelf.core.designsystem.CoverColors
 
 const val BOOK_COVER_TEST_TAG_PREFIX = "book_cover_"
 
-private val CoverShape = RoundedCornerShape(8.dp)
-private val CoverWidth = 132.dp
-private val CoverHeight = 188.dp
+private val RowCoverShape = RoundedCornerShape(8.dp)
+private val RowCoverWidth = 132.dp
+private val RowCoverHeight = 188.dp
+private val GridCoverShape = RoundedCornerShape(7.dp)
+
+/** The two places [BookCover] is drawn (plan G9): a fixed-size row card, or a grid cell. */
+enum class BookCoverVariant { Row, Grid }
 
 /**
  * The shared cover placeholder used by the Library rows ([com.minicore.bookshelf.features])
- * and, from #21, the library grid (plan R1). Always draws a colour-block placeholder with the
- * title overlaid, bottom-start - [coverUri] is accepted but **ignored**: image loading arrives
- * with the first ticket that writes a non-null `coverUri` (no book-creation UI exists yet, so
- * none can). Imports nothing from `features` (`LayeringTest`).
+ * and, from #21, the library grid (plan R1/G9). Always draws a colour-block placeholder -
+ * [coverUri] is accepted but **ignored**: image loading arrives with the first ticket that
+ * writes a non-null `coverUri` (no book-creation UI exists yet, so none can). Imports nothing
+ * from `features` (`LayeringTest`).
  *
  * @param bookId used (not [title]) to pick the placeholder colour from a fixed six-colour
  *   palette via `Math.floorMod` (plan R2) - stable across renames, identical wherever the same
  *   book's cover is drawn.
  * @param dimmed `true` for a lent-out book: the whole cover (including the title) is drawn at
  *   55% opacity, exactly as mocked (plan D15). The title's contrast is reduced at that opacity;
- *   accepted, see plan section 12 (Q7).
+ *   accepted, see plan section 12 (Q7). Only meaningful for [BookCoverVariant.Row] - the grid
+ *   variant is never dimmed (plan section 1: the grid's one lent book is drawn at full opacity).
+ * @param variant [BookCoverVariant.Row] is the #20 row card: a fixed 132x188dp size, 8dp radius,
+ *   4dp shadow and the title overlaid bottom-start. [BookCoverVariant.Grid] fills the available
+ *   width at a 3:4.3 aspect ratio, 7dp radius, 2dp shadow and **no title overlay** - the grid
+ *   draws the title below the cover itself (plan G9/G12).
  */
 @Composable
 fun BookCover(
@@ -51,33 +62,46 @@ fun BookCover(
     coverUri: String?,
     modifier: Modifier = Modifier,
     dimmed: Boolean = false,
+    variant: BookCoverVariant = BookCoverVariant.Row,
 ) {
     val palette = BookshelfTheme.extendedColors.coverPalette
     val colors = coverColorsFor(bookId, palette)
 
-    Surface(
-        modifier = modifier
-            .testTag(BOOK_COVER_TEST_TAG_PREFIX + bookId)
-            .size(CoverWidth, CoverHeight)
-            .alpha(if (dimmed) 0.55f else 1f)
-            .shadow(4.dp, CoverShape),
-        shape = CoverShape,
-        color = colors.background,
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(12.dp),
-            contentAlignment = Alignment.BottomStart,
+    when (variant) {
+        BookCoverVariant.Row -> Surface(
+            modifier = modifier
+                .testTag(BOOK_COVER_TEST_TAG_PREFIX + bookId)
+                .size(RowCoverWidth, RowCoverHeight)
+                .alpha(if (dimmed) 0.55f else 1f)
+                .shadow(4.dp, RowCoverShape),
+            shape = RowCoverShape,
+            color = colors.background,
         ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleSmall,
-                color = colors.content,
-                maxLines = 4,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(12.dp),
+                contentAlignment = Alignment.BottomStart,
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = colors.content,
+                    maxLines = 4,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
+
+        BookCoverVariant.Grid -> Surface(
+            modifier = modifier
+                .testTag(BOOK_COVER_TEST_TAG_PREFIX + bookId)
+                .fillMaxWidth()
+                .aspectRatio(3f / 4.3f)
+                .shadow(2.dp, GridCoverShape),
+            shape = GridCoverShape,
+            color = colors.background,
+        ) {}
     }
 }
 
@@ -108,6 +132,28 @@ private fun BookCoverDimmedPreview() {
     BookshelfTheme {
         Box(modifier = Modifier.background(MaterialTheme.colorScheme.background).padding(8.dp)) {
             BookCover(bookId = 1, title = "A Lent Book", coverUri = null, dimmed = true)
+        }
+    }
+}
+
+@Preview(name = "BookCover — grid variant")
+@Composable
+private fun BookCoverGridPreview() {
+    BookshelfTheme {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            modifier = Modifier.background(MaterialTheme.colorScheme.background).padding(8.dp),
+        ) {
+            for (id in 0L until 3L) {
+                Box(modifier = Modifier.size(100.dp)) {
+                    BookCover(
+                        bookId = id,
+                        title = "Book $id",
+                        coverUri = null,
+                        variant = BookCoverVariant.Grid,
+                    )
+                }
+            }
         }
     }
 }

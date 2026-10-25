@@ -54,6 +54,14 @@ data class BookshelfExtendedColors(
     val dueUpcoming: Color,
     val overdue: Color,
     val coverPalette: List<CoverColors>,
+    // Library grid (BOOKSHELF-0021, plan G7): status-dot fills and the lent overlay's ring.
+    val statusReading: Color,
+    val statusFinished: Color,
+    val statusWantToRead: Color,
+    val lentAccent: Color,
+    // The "Lent to X" caption reuses `due_upcoming`, not terracotta - terracotta on paper is
+    // 3.39:1 and fails AA for 10sp text, same precedent as #20 R5 (plan G7).
+    val lentCaption: Color,
 )
 
 internal val LocalBookshelfExtendedColors = staticCompositionLocalOf<BookshelfExtendedColors> {
@@ -76,5 +84,10 @@ internal fun bookshelfExtendedColors(): BookshelfExtendedColors {
             CoverColors(colorResource(R.color.cover_5_bg), cream),
             CoverColors(colorResource(R.color.cover_6_bg), ink),
         ),
+        statusReading = colorResource(R.color.status_reading),
+        statusFinished = colorResource(R.color.gold),
+        statusWantToRead = colorResource(R.color.status_want_to_read),
+        lentAccent = colorResource(R.color.terracotta),
+        lentCaption = colorResource(R.color.due_upcoming),
     )
 }
