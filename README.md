@@ -147,6 +147,25 @@ The "Bookshelf" wordmark is rendered using a committed, version-pinned Playfair 
 
 ---
 
+## 🔠 The bundled Fraunces font
+
+The Library screen's "Bookshelf" title is rendered with a bundled, static Fraunces SemiBold font (`app/src/main/res/font/fraunces_semibold.ttf`), the same reasoning as the splash screen above: a downloadable or system-fallback font can silently resolve to the wrong typeface, and Bookshelf is local-first and offline. See the provenance and SHA-256 comment in `core/designsystem/Type.kt` for where the file came from and how it was produced, and `app/src/main/assets/licenses/Fraunces-OFL.txt` for its SIL OFL 1.1 license (shipped outside `res/font/`, which AAPT2 restricts to font files only).
+
+No static 24pt SemiBold cut of Fraunces is published upstream, so the committed file is produced from Google Fonts' variable font by the dev-only `tools/fraunces-font/generate.py` script. It never runs as part of the Gradle build. Never hand-edit the committed `.ttf` — re-run the script instead.
+
+Prerequisite: Python 3 with `pip install -r tools/fraunces-font/requirements.txt`.
+
+```bash
+cd tools/fraunces-font
+python generate.py generate   # writes a fresh instance to out/fraunces_semibold.ttf
+python generate.py check       # verifies the pinned source hash and that the committed
+                                # font is byte-equal to a freshly generated instance
+```
+
+Commit the regenerated file under `app/src/main/res/font/` whenever the pinned source or axis pins change, and run `check` before committing.
+
+---
+
 ## 📄 License
 
 See [LICENSE](LICENSE).

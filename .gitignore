@@ -42,5 +42,8 @@ tools/launcher-icon/out/
 tools/splash-screen/node_modules/
 tools/splash-screen/out/
 
+# Fraunces font generation tool (dev-only, not part of the Gradle build)
+tools/fraunces-font/out/
+tools/fraunces-font/__pycache__/
 # Claude Code personal overrides
 .claude/settings.local.json
