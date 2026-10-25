@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <!-- Debug/test-only (plan R13): lets instrumented tests resolve hiltViewModel() without
+             launching MainActivity. Never ships in a release build. -->
+        <activity
+            android:name=".HiltTestActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Bookshelf" />
+    </application>
+
+</manifest>
