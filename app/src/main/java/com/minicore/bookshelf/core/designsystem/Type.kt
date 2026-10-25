@@ -4,6 +4,7 @@ import androidx.compose.material3.Typography
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.minicore.bookshelf.R
 
@@ -31,12 +32,50 @@ import com.minicore.bookshelf.R
  */
 private val Fraunces = FontFamily(Font(R.font.fraunces_semibold, FontWeight.SemiBold))
 
+/**
+ * Inter, Regular, static instance.
+ *
+ * Provenance (see also `app/src/main/assets/licenses/Inter-OFL.txt`):
+ * - Upstream: the Inter family by Rasmus Andersson (SIL OFL 1.1),
+ *   https://github.com/rsms/inter, release `v4.1`
+ *   (https://github.com/rsms/inter/releases/download/v4.1/Inter-4.1.zip).
+ * - File: `extras/ttf/Inter-Regular.ttf` from that release zip — a static (no `fvar`) instance
+ *   published directly by upstream, so no local instancing step is needed (unlike Fraunces,
+ *   see below). SHA-256:
+ *   `40d692fce188e4471e2b3cba937be967878f631ad3ebbbdcd587687c7ebe0c82`.
+ * - `name` table family/subfamily: "Inter" / "Regular".
+ * - Only `FontWeight.Normal` is declared here. Requesting any other weight from this file would
+ *   make Compose synthesize a fake bold/narrow weight silently — see `InterFontFileTest`.
+ */
+private val Inter = FontFamily(Font(R.font.inter_regular, FontWeight.Normal))
+
 internal val BookshelfTypography = Typography().let { default ->
     default.copy(
         headlineMedium = default.headlineMedium.copy(
             fontFamily = Fraunces,
             fontWeight = FontWeight.SemiBold,
             fontSize = 26.sp,
-        )
+        ),
+        // Library header wordmark title (BOOKSHELF-0019, plan H9): Fraunces SemiBold, not Bold —
+        // only a SemiBold cut is bundled (see Fraunces KDoc above), so requesting Bold here would
+        // synthesize a fake-bold weight.
+        titleLarge = default.titleLarge.copy(
+            fontFamily = Fraunces,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 22.sp,
+            letterSpacing = (-0.01).em,
+        ),
+        bodyLarge = default.bodyLarge.copy(fontFamily = Inter),
+        // Library header wordmark tagline.
+        bodyMedium = default.bodyMedium.copy(fontFamily = Inter, fontSize = 14.sp),
+        bodySmall = default.bodySmall.copy(
+            fontFamily = Inter,
+            fontSize = 12.5.sp,
+            lineHeight = 16.sp,
+            letterSpacing = 0.02.em,
+        ),
+        labelLarge = default.labelLarge.copy(fontFamily = Inter),
+        labelMedium = default.labelMedium.copy(fontFamily = Inter),
+        labelSmall = default.labelSmall.copy(fontFamily = Inter),
     )
 }

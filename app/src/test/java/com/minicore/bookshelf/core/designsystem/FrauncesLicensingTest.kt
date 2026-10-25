@@ -27,4 +27,11 @@ class FrauncesLicensingTest {
         val licenseFile = File("src/main/assets/licenses/Fraunces-OFL.txt")
         assertTrue("expected ${licenseFile.path} to exist", licenseFile.exists())
     }
+
+    // FF2: Inter is bundled the same way as Fraunces (plan section 3).
+    @Test
+    fun interLicense_existsUnderAssetsLicenses() {
+        val licenseFile = File("src/main/assets/licenses/Inter-OFL.txt")
+        assertTrue("expected ${licenseFile.path} to exist", licenseFile.exists())
+    }
 }

@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Bookshelf</string>
+    <string name="library_tagline">Your books · your loans · your memory of them</string>
+    <string name="library_search_placeholder">Search your library, or add a book</string>
+    <string name="library_search_click_label">Search</string>
+    <string name="brand_mark_initial" translatable="false">B</string>
 </resources>

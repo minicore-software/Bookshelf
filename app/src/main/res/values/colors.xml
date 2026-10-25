@@ -4,4 +4,9 @@
     <color name="paper">#F3EEE3</color>
     <color name="ink">#231F20</color>
     <color name="forest">#2F4538</color>
+
+    <!-- Library header wordmark (BOOKSHELF-0019): tagline, search bar fill/border. -->
+    <color name="ink_muted">#6B5E53</color>
+    <color name="paper_bright">#FBF8F1</color>
+    <color name="line">#E3DCC9</color>
 </resources>

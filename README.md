@@ -166,6 +166,12 @@ Commit the regenerated file under `app/src/main/res/font/` whenever the pinned s
 
 ---
 
+## 🔠 The bundled Inter font
+
+The Library header's tagline and search placeholder are rendered with a bundled, static Inter Regular font (`app/src/main/res/font/inter_regular.ttf`), for the same offline-first reasoning as Fraunces above. Unlike Fraunces, upstream publishes a ready-made static instance directly — no local instancing step is needed. See the provenance and SHA-256 comment in `core/designsystem/Type.kt` for where the file came from, and `app/src/main/assets/licenses/Inter-OFL.txt` for its SIL OFL 1.1 license (shipped outside `res/font/`, which AAPT2 restricts to font files only).
+
+---
+
 ## 📄 License
 
 See [LICENSE](LICENSE).
