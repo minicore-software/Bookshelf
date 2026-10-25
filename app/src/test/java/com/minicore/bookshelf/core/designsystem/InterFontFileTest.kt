@@ -16,6 +16,7 @@ import org.junit.Test
 class InterFontFileTest {
 
     private val fontFile = File("src/main/res/font/inter_regular.ttf")
+    private val semiBoldFontFile = File("src/main/res/font/inter_semibold.ttf")
 
     @Test
     fun committedFontFile_hasNoFvarTable() {
@@ -42,6 +43,36 @@ class InterFontFileTest {
         assertTrue(
             "expected a 'Regular' style/weight name, found: $nameStrings",
             nameStrings.any { it.contains("Regular", ignoreCase = true) }
+        )
+    }
+
+    // BOOKSHELF-0020 (plan section 3): the SemiBold cut must be a static instance too, not the
+    // variable font or the Regular weight committed under the wrong name.
+    @Test
+    fun committedSemiBoldFontFile_hasNoFvarTable() {
+        assertTrue("expected ${semiBoldFontFile.path} to exist", semiBoldFontFile.exists())
+
+        val tags = readSfntTableTags(semiBoldFontFile)
+
+        assertFalse(
+            "a variable font (fvar table present) must not be committed as a static weight",
+            tags.contains("fvar")
+        )
+    }
+
+    @Test
+    fun committedSemiBoldFontFile_nameTableIdentifiesInterSemiBold() {
+        assertTrue("expected ${semiBoldFontFile.path} to exist", semiBoldFontFile.exists())
+
+        val nameStrings = readNameTableStrings(semiBoldFontFile)
+
+        assertTrue(
+            "expected an 'Inter' family name, found: $nameStrings",
+            nameStrings.any { it.contains("Inter", ignoreCase = true) }
+        )
+        assertTrue(
+            "expected a 'SemiBold' style/weight name, found: $nameStrings",
+            nameStrings.any { it.contains("SemiBold", ignoreCase = true) }
         )
     }
 

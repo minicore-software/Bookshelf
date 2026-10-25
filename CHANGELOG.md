@@ -51,3 +51,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `paper_bright`/`line` colour tokens in `core/designsystem/`. Bundles a new
   static Inter Regular font (`app/src/main/res/font/inter_regular.ttf`) with
   its SIL OFL 1.1 license under `app/src/main/assets/licenses/`. Closes #10.
+- Currently-reading and lent-out rows on the Library screen: a stateful
+  `LibraryRoute`/`LibraryViewModel` observes the new `ObserveLibraryRowsUseCase`
+  (combining #18's `LibraryRepository` flows with a midnight-rolling
+  `CurrentDateProvider`) and renders two horizontally scrollable rows —
+  "Currently reading" (cover + title only, no progress UI) and "Lent out"
+  (dimmed cover, borrower, colour- and weight-coded "Due in N days" /
+  "Overdue N days" caption, "See all · N"). Adds a shared `BookCover`
+  placeholder component (`core/designsystem/component/`, palette-by-ID
+  colour blocks — no image-loading library yet, since no screen writes
+  `coverUri`), new `LoanDueStatus` domain logic for the due/overdue
+  boundaries, library-row colour and Inter SemiBold type tokens, and Hilt
+  instrumented-test infrastructure (`HiltTestRunner`, `HiltTestActivity`)
+  so `BookshelfNavGraphTest`/`MainActivityLaunchTest` can inject a fake
+  repository. Both card taps and "See all" are no-ops for now (Book Detail
+  and My Loans ship in later tickets). (#20)

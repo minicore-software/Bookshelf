@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.test.platform.app.InstrumentationRegistry
 import com.minicore.bookshelf.R
 import com.minicore.bookshelf.core.designsystem.BookshelfTheme
+import com.minicore.bookshelf.features.library.domain.LibraryRows
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -50,7 +51,7 @@ class LibraryScreenTest {
     fun libraryScreen_hasNoAvatarOrGreeting() {
         composeRule.setContent {
             BookshelfTheme {
-                LibraryScreen()
+                LibraryScreen(uiState = LibraryUiState.Content(LibraryRows(emptyList(), emptyList())))
             }
         }
 
@@ -65,7 +66,7 @@ class LibraryScreenTest {
     fun libraryScreen_showsExactlyTheExpectedText() {
         composeRule.setContent {
             BookshelfTheme {
-                LibraryScreen()
+                LibraryScreen(uiState = LibraryUiState.Content(LibraryRows(emptyList(), emptyList())))
             }
         }
 
@@ -88,7 +89,7 @@ class LibraryScreenTest {
             ) {
                 BookshelfTheme {
                     Surface {
-                        LibraryScreen()
+                        LibraryScreen(uiState = LibraryUiState.Content(LibraryRows(emptyList(), emptyList())))
                     }
                 }
             }

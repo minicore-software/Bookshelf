@@ -11,6 +11,8 @@ import androidx.compose.ui.test.onRoot
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.minicore.bookshelf.features.library.ui.LIBRARY_BRAND_MARK_TEST_TAG
 import com.minicore.bookshelf.features.splash.ui.SPLASH_SCREEN_TEST_TAG
+import dagger.hilt.android.testing.HiltAndroidRule
+import dagger.hilt.android.testing.HiltAndroidTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -25,10 +27,14 @@ private const val CHANNEL_TOLERANCE = 8
 
 // F6/FF3: no near-white (or any off-palette) flash at the splash-to-landing handover, and the
 // title is really drawn in ink on paper.
+@HiltAndroidTest
 @RunWith(AndroidJUnit4::class)
 class LibraryScreenPixelTest {
 
-    @get:Rule
+    @get:Rule(order = 0)
+    val hiltRule = HiltAndroidRule(this)
+
+    @get:Rule(order = 1)
     val composeRule = createAndroidComposeRule<MainActivity>()
 
     @Test

@@ -1,6 +1,8 @@
 package com.minicore.bookshelf.core.designsystem
 
 import androidx.compose.material3.Typography
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -33,21 +35,31 @@ import com.minicore.bookshelf.R
 private val Fraunces = FontFamily(Font(R.font.fraunces_semibold, FontWeight.SemiBold))
 
 /**
- * Inter, Regular, static instance.
+ * Inter, Regular and SemiBold, static instances.
  *
  * Provenance (see also `app/src/main/assets/licenses/Inter-OFL.txt`):
  * - Upstream: the Inter family by Rasmus Andersson (SIL OFL 1.1),
  *   https://github.com/rsms/inter, release `v4.1`
  *   (https://github.com/rsms/inter/releases/download/v4.1/Inter-4.1.zip).
- * - File: `extras/ttf/Inter-Regular.ttf` from that release zip — a static (no `fvar`) instance
- *   published directly by upstream, so no local instancing step is needed (unlike Fraunces,
- *   see below). SHA-256:
+ * - Regular file: `extras/ttf/Inter-Regular.ttf` from that release zip — a static (no `fvar`)
+ *   instance published directly by upstream, so no local instancing step is needed (unlike
+ *   Fraunces, see below). SHA-256:
  *   `40d692fce188e4471e2b3cba937be967878f631ad3ebbbdcd587687c7ebe0c82`.
  * - `name` table family/subfamily: "Inter" / "Regular".
- * - Only `FontWeight.Normal` is declared here. Requesting any other weight from this file would
- *   make Compose synthesize a fake bold/narrow weight silently — see `InterFontFileTest`.
+ * - SemiBold file (BOOKSHELF-0020, plan section 3): `extras/ttf/Inter-SemiBold.ttf` from the
+ *   **same** `v4.1` release zip — also a static, non-`fvar` instance. SHA-256:
+ *   `78a843fade9d4612a5567302fb595b56976eb5fcebf4fea5a5912d638bafcde3`. `name` table
+ *   family/subfamily: "Inter" / "SemiBold". Used by the Library rows' trailing labels, borrower
+ *   text and overdue caption (plan R6) — the weight is what makes "overdue" distinct from
+ *   "upcoming" without relying on colour alone (WCAG 1.4.1).
+ * - Only `FontWeight.Normal` and `FontWeight.SemiBold` are declared here, each from its own
+ *   file. Requesting any other weight (or SemiBold from the Regular file) would make Compose
+ *   synthesize a fake bold/narrow weight silently — see `InterFontFileTest`.
  */
-private val Inter = FontFamily(Font(R.font.inter_regular, FontWeight.Normal))
+private val Inter = FontFamily(
+    Font(R.font.inter_regular, FontWeight.Normal),
+    Font(R.font.inter_semibold, FontWeight.SemiBold),
+)
 
 internal val BookshelfTypography = Typography().let { default ->
     default.copy(
@@ -65,6 +77,19 @@ internal val BookshelfTypography = Typography().let { default ->
             fontSize = 22.sp,
             letterSpacing = (-0.01).em,
         ),
+        // Library rows (BOOKSHELF-0020, plan R6): section titles ("Currently reading", "Lent out").
+        titleMedium = default.titleMedium.copy(
+            fontFamily = Fraunces,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 18.sp,
+        ),
+        // Library rows: cover title overlay. Upright, not italic — see BookCover KDoc (plan R3).
+        titleSmall = default.titleSmall.copy(
+            fontFamily = Fraunces,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 14.sp,
+            lineHeight = 17.5.sp,
+        ),
         bodyLarge = default.bodyLarge.copy(fontFamily = Inter),
         // Library header wordmark tagline.
         bodyMedium = default.bodyMedium.copy(fontFamily = Inter, fontSize = 14.sp),
@@ -75,7 +100,28 @@ internal val BookshelfTypography = Typography().let { default ->
             letterSpacing = 0.02.em,
         ),
         labelLarge = default.labelLarge.copy(fontFamily = Inter),
-        labelMedium = default.labelMedium.copy(fontFamily = Inter),
-        labelSmall = default.labelSmall.copy(fontFamily = Inter),
+        // Library rows: trailing section labels ("2 books", "See all · 3").
+        labelMedium = default.labelMedium.copy(
+            fontFamily = Inter,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 12.sp,
+        ),
+        // Library rows: due/overdue caption. Overdue uses `.copy(fontWeight = SemiBold)` on top
+        // of this (plan R6) — weight, not just colour, signals overdue (WCAG 1.4.1).
+        labelSmall = default.labelSmall.copy(
+            fontFamily = Inter,
+            fontWeight = FontWeight.Normal,
+            fontSize = 11.sp,
+            lineHeight = 14.sp,
+        ),
     )
+}
+
+/** Text styles with no [Typography] slot of their own (plan R6). */
+object LibraryTextStyles {
+    val borrower: TextStyle
+        @Composable get() = BookshelfTypography.labelSmall.copy(
+            fontSize = 11.5.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
 }

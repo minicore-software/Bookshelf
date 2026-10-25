@@ -5,4 +5,26 @@
     <string name="library_search_placeholder">Search your library, or add a book</string>
     <string name="library_search_click_label">Search</string>
     <string name="brand_mark_initial" translatable="false">B</string>
+
+    <!-- Library rows (BOOKSHELF-0020) -->
+    <string name="library_currently_reading_title">Currently reading</string>
+    <string name="library_lent_out_title">Lent out</string>
+    <plurals name="library_reading_count">
+        <item quantity="one">%d book</item>
+        <item quantity="other">%d books</item>
+    </plurals>
+    <string name="library_lent_out_see_all">See all · %d</string>
+    <string name="library_see_all_click_label">See all loans</string>
+    <string name="library_book_click_label">Open book</string>
+    <string name="library_loan_borrower">With %s</string>
+    <string name="library_loan_due_today">Due today</string>
+    <plurals name="library_loan_due_in">
+        <item quantity="one">Due in %d day</item>
+        <item quantity="other">Due in %d days</item>
+    </plurals>
+    <plurals name="library_loan_overdue">
+        <item quantity="one">Overdue %d day</item>
+        <item quantity="other">Overdue %d days</item>
+    </plurals>
+    <string name="library_loan_due_on">Due %s</string>
 </resources>

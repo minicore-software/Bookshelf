@@ -9,4 +9,16 @@
     <color name="ink_muted">#6B5E53</color>
     <color name="paper_bright">#FBF8F1</color>
     <color name="line">#E3DCC9</color>
+
+    <!-- Library rows (BOOKSHELF-0020): borrower text, due/overdue captions, cover placeholders. -->
+    <color name="ink_soft">#4A4640</color>
+    <color name="due_upcoming">#A4532C</color>
+    <color name="overdue">#9B2C2C</color>
+    <color name="cover_cream">#F6EBDD</color>
+    <color name="cover_1_bg">#3F6D63</color>
+    <color name="cover_2_bg">#A0522C</color>
+    <color name="cover_3_bg">#B99A2E</color>
+    <color name="cover_4_bg">#5C6B8A</color>
+    <color name="cover_5_bg">#6B4A63</color>
+    <color name="cover_6_bg">#8A9566</color>
 </resources>
