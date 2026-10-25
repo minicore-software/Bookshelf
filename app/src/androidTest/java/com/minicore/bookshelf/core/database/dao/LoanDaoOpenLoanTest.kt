@@ -216,6 +216,13 @@ class LoanDaoOpenLoanTest {
         } catch (expected: SQLiteConstraintException) {
             // expected
         }
+
+        database.openHelper.readableDatabase
+            .query("SELECT book_id FROM loans WHERE id = $loanOnC")
+            .use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertEquals(bookC, cursor.getLong(0))
+            }
     }
 
     // A16 (should): re-lend - open loan returned, then a new open loan succeeds.

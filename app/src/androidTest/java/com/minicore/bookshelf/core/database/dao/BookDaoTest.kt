@@ -136,6 +136,13 @@ class BookDaoTest {
         insertLoan(bookId, returnedAt = Instant.ofEpochMilli(5_000))
         insertLoan(bookId, returnedAt = null)
 
+        database.openHelper.readableDatabase
+            .query("SELECT COUNT(*) FROM loans WHERE book_id = $bookId")
+            .use {
+                it.moveToFirst()
+                assertEquals(2, it.getInt(0))
+            }
+
         database.bookDao().deleteById(bookId)
 
         val remainingLoans = database.openHelper.readableDatabase
