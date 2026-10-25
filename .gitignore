@@ -41,3 +41,6 @@ tools/launcher-icon/out/
 # Splash screen generation tool (dev-only, not part of the Gradle build)
 tools/splash-screen/node_modules/
 tools/splash-screen/out/
+
+# Claude Code personal overrides
+.claude/settings.local.json
