@@ -5,8 +5,10 @@ variable font.
 
 Usage:
     python generate.py generate   # writes a fresh instance to out/fraunces_semibold.ttf
-    python generate.py check      # verifies the pinned source hash and the committed
-                                   # font's invariants (no fvar/STAT, correct family name)
+    python generate.py check      # verifies the pinned source hash, the committed font's
+                                   # invariants (no fvar/STAT, correct family name), and that
+                                   # its glyf/loca/hmtx/hhea/OS2/GPOS/GSUB tables are
+                                   # byte-equal to a freshly generated instance
 
 See docs/plans/10-blank-landing-screen.md section 3 and
 app/src/main/java/com/minicore/bookshelf/core/designsystem/Type.kt for why this instance
@@ -19,6 +21,7 @@ steps instead of another one-off hand edit.
 
 import sys
 from hashlib import sha256
+from io import BytesIO
 from pathlib import Path
 
 from fontTools.ttLib import TTFont
@@ -70,6 +73,21 @@ NAME_OVERRIDES = {
 # STAT-only "variations PostScript name prefix". Both become stale once fvar/STAT are gone.
 STALE_NAME_IDS = {25} | set(range(256, 32768))
 
+# The source variable font only carries Windows-platform (platformID 3) copies of the OFL
+# copyright/license-text/license-URL names. Mirror them into Macintosh-platform (platformID
+# 0, encoding 0) records too, matching how most statically-built Google Fonts releases (and
+# the committed font) carry both, so the OFL notice survives on readers that only consult the
+# Macintosh records.
+LICENSE_NAME_IDS = (0, 13, 14)
+
+# Tables whose raw bytes must match exactly between a freshly generated instance and the
+# committed font for `check` to actually verify the committed file is the right build (same
+# axis pins, not a hand edit) rather than merely "some Fraunces static instance with the same
+# character coverage". Deliberately excludes "head" (contains a build timestamp/modified
+# date that differs on every run) and "name" (intentionally hand-rewritten family/subfamily
+# names via NAME_OVERRIDES above; see Type.kt).
+BYTE_EQUAL_TABLES = ("glyf", "loca", "hmtx", "hhea", "OS/2", "GPOS", "GSUB")
+
 
 def load_source() -> TTFont:
     data = SOURCE_PATH.read_bytes()
@@ -100,6 +118,11 @@ def build_instance() -> TTFont:
     for name_id, value in NAME_OVERRIDES.items():
         name.setName(value, name_id, 1, 0, 0)  # Macintosh
         name.setName(value, name_id, 3, 1, 0x409)  # Windows, en-US
+
+    for name_id in LICENSE_NAME_IDS:
+        windows_value = name.getDebugName(name_id)
+        if windows_value is not None:
+            name.setName(windows_value, name_id, 1, 0, 0)  # Macintosh
     return font
 
 
@@ -117,6 +140,21 @@ def assert_static_instance(font: TTFont, label: str) -> list[str]:
     if subfamily != "SemiBold":
         errors.append(f"{label}: name ID 2 (subfamily) is {subfamily!r}, expected 'SemiBold'.")
     return errors
+
+
+def raw_table_bytes(font: TTFont, tags: tuple[str, ...]) -> dict[str, bytes]:
+    """Returns the exact on-disk bytes for the given table tags, saving `font` to an
+    in-memory buffer first if it isn't backed by a reader yet (e.g. a freshly built
+    instance that was never saved to/loaded from a file). Raw bytes are what matters here:
+    two tables can be semantically equivalent (same glyphs, same metrics) yet still differ
+    byte-for-byte because of compiler ordering/padding, so we always go through a save to
+    compare what a consumer would actually read, not Python object equality.
+    """
+    buffer = BytesIO()
+    font.save(buffer)
+    buffer.seek(0)
+    saved = TTFont(buffer, lazy=True)
+    return {tag: saved.reader[tag] for tag in tags if tag in saved}
 
 
 def generate() -> None:
@@ -163,6 +201,18 @@ def check() -> None:
                     "generated instance from the same pinned source — the committed file "
                     "may predate the current source/axis pins."
                 )
+
+            fresh_tables = raw_table_bytes(font, BYTE_EQUAL_TABLES)
+            committed_tables = raw_table_bytes(committed, BYTE_EQUAL_TABLES)
+            for tag in BYTE_EQUAL_TABLES:
+                fresh_data = fresh_tables.get(tag)
+                committed_data = committed_tables.get(tag)
+                if fresh_data != committed_data:
+                    errors.append(
+                        f"committed font: '{tag}' table bytes differ from a freshly "
+                        "generated instance from the same pinned source/axis pins — the "
+                        "committed file may be a wrong-axis build or a hand edit."
+                    )
 
     if errors:
         print("FAILED:", file=sys.stderr)
