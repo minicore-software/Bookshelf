@@ -50,8 +50,9 @@ app/src/main/java/com/minicore/bookshelf/
  ├── features/
  │    ├── library/
  │    │    ├── ui/         # Compose screens + ViewModels (shelf, book detail, add book)
- │    │    ├── domain/     # Use cases
- │    │    └── data/       # Room DAOs, local data source, repository impl
+ │    │    ├── domain/     # LibraryRepository contract, read models (LibraryBook, LentBook,
+ │    │    │               # LibraryCounts, OpenLoan), use cases
+ │    │    └── data/       # RoomLibraryRepository (entity <-> domain mapping)
  │    ├── lending/
  │    │    ├── ui/         # Lend-a-book sheet, My Loans screen
  │    │    ├── domain/
@@ -65,7 +66,11 @@ app/src/main/java/com/minicore/bookshelf/
  │    └── stats/
  │         └── ui/         # Reading insights (books/pages/streak/genres)
  ├── core/
- │    ├── database/        # Room database, shared DAOs
+ │    ├── model/            # Book, BookStatus - pure Kotlin domain model shared by every feature
+ │    ├── database/         # Room database, shared DAOs
+ │    │    ├── entity/      # BookEntity, LoanEntity
+ │    │    ├── converter/   # BookshelfConverters (Instant/LocalDate/BookStatus <-> column types)
+ │    │    └── dao/         # BookDao, LoanDao, LibraryBookRow/StatusCountRow projections
  │    ├── designsystem/    # BookshelfTheme, palette, typography (Fraunces/paper/ink/forest)
  │    ├── scanner/         # ISBN barcode scanner (ML Kit)
  │    └── lookup/          # Book metadata lookup (title/author/ISBN search, future)
