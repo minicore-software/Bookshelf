@@ -11,6 +11,7 @@ import com.minicore.bookshelf.features.library.domain.model.LibraryCounts
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
+import javax.inject.Provider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -55,7 +56,7 @@ class LibraryViewModelTest {
     }
 
     private fun viewModel() = LibraryViewModel(
-        ObserveLibraryRowsUseCase(repository, CurrentDateProvider(clock)),
+        ObserveLibraryRowsUseCase(repository, CurrentDateProvider(Provider { clock })),
     )
 
     @Test

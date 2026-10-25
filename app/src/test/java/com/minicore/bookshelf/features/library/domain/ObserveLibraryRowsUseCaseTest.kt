@@ -10,6 +10,7 @@ import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
+import javax.inject.Provider
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -57,7 +58,7 @@ private class FakeLibraryRepository : LibraryRepository {
 class ObserveLibraryRowsUseCaseTest {
 
     private val repository = FakeLibraryRepository()
-    private val useCase = ObserveLibraryRowsUseCase(repository, CurrentDateProvider(FixedClock))
+    private val useCase = ObserveLibraryRowsUseCase(repository, CurrentDateProvider(Provider { FixedClock }))
 
     @Test
     fun currentlyReading_matchesRepositoryOrder_verbatim() = runTest {

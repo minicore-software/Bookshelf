@@ -5,9 +5,11 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.ZoneOffset
+import javax.inject.Provider
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -15,16 +17,25 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /**
- * F8 (plan section 6/FF1): a mutable test [Clock], advanced in lockstep with the test scheduler's
- * virtual time, proves the ticker re-emits exactly once at local midnight, not before.
+ * F8 (plan section 6/FF1/R8): a mutable test [Clock], advanced in lockstep with the test
+ * scheduler's virtual time, proves the ticker re-emits exactly once at local midnight, not
+ * before; that it honours the clock's own zone (not a hardcoded UTC); and that it still rolls
+ * over exactly once per day across a DST transition, including the 23-hour local day that
+ * produces.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class CurrentDateProviderTest {
 
-    private class MutableTestClock(var instant: Instant) : Clock() {
-        override fun getZone(): ZoneId = ZoneOffset.UTC
-        override fun withZone(zone: ZoneId): Clock = this
+    private class MutableTestClock(var instant: Instant, private val zoneId: ZoneId) : Clock() {
+        override fun getZone(): ZoneId = zoneId
+        override fun withZone(zone: ZoneId): Clock = MutableTestClock(instant, zone)
         override fun instant(): Instant = instant
+    }
+
+    /** Advances the test clock's own reading and the scheduler's virtual time together. */
+    private fun TestScope.advance(clock: MutableTestClock, millis: Long) {
+        clock.instant = clock.instant.plusMillis(millis)
+        advanceTimeBy(millis)
     }
 
     @Test
@@ -32,8 +43,8 @@ class CurrentDateProviderTest {
         // One millisecond before local midnight.
         val oneMsBeforeMidnight = LocalDate.of(2026, 6, 16).atStartOfDay(ZoneOffset.UTC).toInstant()
             .minusMillis(1)
-        val clock = MutableTestClock(oneMsBeforeMidnight)
-        val provider = CurrentDateProvider(clock)
+        val clock = MutableTestClock(oneMsBeforeMidnight, ZoneOffset.UTC)
+        val provider = CurrentDateProvider(Provider { clock })
 
         val emissions = mutableListOf<LocalDate>()
         val job = backgroundScope.launch {
@@ -43,15 +54,98 @@ class CurrentDateProviderTest {
 
         assertEquals(listOf(LocalDate.of(2026, 6, 15)), emissions)
 
-        // Advance the virtual clock's own reading to match the scheduler's advance, then cross
-        // the 1ms boundary: the delay must complete and re-emit exactly once, not before.
-        clock.instant = clock.instant.plusMillis(1)
-        advanceTimeBy(1)
+        // Cross the 1ms boundary: the delay must complete and re-emit exactly once, not before.
+        advance(clock, 1)
         runCurrent()
 
         assertEquals(
             "must emit exactly once at rollover, no earlier and no more than once",
             listOf(LocalDate.of(2026, 6, 15), LocalDate.of(2026, 6, 16)),
+            emissions,
+        )
+
+        job.cancel()
+    }
+
+    // F8 regression guard: a hardcoded atStartOfDay(ZoneOffset.UTC) would still pass the test
+    // above (clock.zone happens to be UTC there). America/New_York is 4 hours behind UTC in
+    // June 2026 (EDT), so local midnight there is 04:00 UTC - a wrong-zone implementation would
+    // roll over 4 hours too early or too late.
+    @Test
+    fun rollsOverAtLocalMidnight_inTheClocksOwnNonUtcZone() = runTest(StandardTestDispatcher()) {
+        val zone = ZoneId.of("America/New_York")
+        val oneMsBeforeLocalMidnight = LocalDate.of(2026, 6, 16).atStartOfDay(zone).toInstant()
+            .minusMillis(1)
+        val clock = MutableTestClock(oneMsBeforeLocalMidnight, zone)
+        val provider = CurrentDateProvider(Provider { clock })
+
+        val emissions = mutableListOf<LocalDate>()
+        val job = backgroundScope.launch {
+            provider.observe().collect { emissions.add(it) }
+        }
+        runCurrent()
+
+        assertEquals(listOf(LocalDate.of(2026, 6, 15)), emissions)
+
+        advance(clock, 1)
+        runCurrent()
+
+        assertEquals(
+            listOf(LocalDate.of(2026, 6, 15), LocalDate.of(2026, 6, 16)),
+            emissions,
+        )
+
+        job.cancel()
+    }
+
+    // F8/Q2: a DST spring-forward day (Europe/Lisbon, last Sunday of March 2026 = the 29th,
+    // clocks jump 01:00 -> 02:00 local) still rolls over exactly once per local midnight, both
+    // into the 23-hour local day and out of it - atStartOfDay(zone) must resolve correctly on
+    // both sides, not drift by the lost hour.
+    @Test
+    fun rollsOverExactlyOnce_acrossADstSpringForwardDay() = runTest(StandardTestDispatcher()) {
+        val lisbon = ZoneId.of("Europe/Lisbon")
+        val dayBeforeSwitch = LocalDate.of(2026, 3, 28)
+        val switchDay = LocalDate.of(2026, 3, 29) // the 23-hour local day
+        val dayAfterSwitch = LocalDate.of(2026, 3, 30)
+
+        val startInstant = dayBeforeSwitch.atStartOfDay(lisbon).toInstant().plusSeconds(12 * 3600)
+        val clock = MutableTestClock(startInstant, lisbon)
+        val provider = CurrentDateProvider(Provider { clock })
+
+        val emissions = mutableListOf<LocalDate>()
+        val job = backgroundScope.launch {
+            provider.observe().collect { emissions.add(it) }
+        }
+        runCurrent()
+        assertEquals(listOf(dayBeforeSwitch), emissions)
+
+        // Up to 1ms before the first midnight: no rollover yet.
+        val msUntilFirstMidnight = switchDay.atStartOfDay(lisbon).toInstant().toEpochMilli() -
+            clock.instant.toEpochMilli()
+        advance(clock, msUntilFirstMidnight - 1)
+        runCurrent()
+        assertEquals(listOf(dayBeforeSwitch), emissions)
+
+        // The 1ms that crosses into the 23-hour DST day: exactly one new emission.
+        advance(clock, 1)
+        runCurrent()
+        assertEquals(listOf(dayBeforeSwitch, switchDay), emissions)
+
+        // Up to 1ms before the second midnight (leaving the 23-hour day): no rollover yet,
+        // despite the lost hour inside this day.
+        val msUntilSecondMidnight = dayAfterSwitch.atStartOfDay(lisbon).toInstant().toEpochMilli() -
+            clock.instant.toEpochMilli()
+        advance(clock, msUntilSecondMidnight - 1)
+        runCurrent()
+        assertEquals(listOf(dayBeforeSwitch, switchDay), emissions)
+
+        // Crossing out of the 23-hour day: exactly one new emission, no double-rollover.
+        advance(clock, 1)
+        runCurrent()
+        assertEquals(
+            "must roll over exactly once per local midnight even across the DST day",
+            listOf(dayBeforeSwitch, switchDay, dayAfterSwitch),
             emissions,
         )
 

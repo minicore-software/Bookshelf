@@ -113,19 +113,22 @@ private fun SectionHeader(
             .fillMaxWidth()
             .padding(start = 20.dp, top = topPadding, end = 20.dp, bottom = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.Bottom,
     ) {
         Text(
             text = title,
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.semantics { heading() },
+            modifier = Modifier.alignByBaseline().semantics { heading() },
         )
         if (onTrailingClick != null) {
+            // A Box passes up its single child's FirstBaseline, so alignByBaseline here lines
+            // the "See all" text up with the title's baseline (plan R10: align-items: baseline)
+            // while still keeping the 48dp touch target around it.
             Box(
                 modifier = Modifier
                     .testTag(LIBRARY_SEE_ALL_LOANS_TEST_TAG)
                     .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+                    .alignByBaseline()
                     .clickable(
                         onClickLabel = seeAllClickLabel,
                         role = Role.Button,
@@ -144,6 +147,7 @@ private fun SectionHeader(
                 text = trailing,
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.alignByBaseline(),
             )
         }
     }
