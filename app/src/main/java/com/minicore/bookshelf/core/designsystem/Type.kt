@@ -117,11 +117,36 @@ internal val BookshelfTypography = Typography().let { default ->
     )
 }
 
-/** Text styles with no [Typography] slot of their own (plan R6). */
+/** Text styles with no [Typography] slot of their own (plan R6, G8). */
 object LibraryTextStyles {
     val borrower: TextStyle
         @Composable get() = BookshelfTypography.labelSmall.copy(
             fontSize = 11.5.sp,
             fontWeight = FontWeight.SemiBold,
+        )
+
+    // Library grid filter chips (BOOKSHELF-0021, plan G8). The selected chip layers
+    // `.copy(fontWeight = FontWeight.SemiBold)` on top - a real bundled weight, not synthesized.
+    val chip: TextStyle
+        @Composable get() = TextStyle(
+            fontFamily = Inter,
+            fontWeight = FontWeight.Normal,
+            fontSize = 13.sp,
+        )
+
+    val gridTitle: TextStyle
+        @Composable get() = TextStyle(
+            fontFamily = Inter,
+            fontWeight = FontWeight.Normal,
+            fontSize = 11.5.sp,
+            lineHeight = 15.sp,
+        )
+
+    val gridLentCaption: TextStyle
+        @Composable get() = TextStyle(
+            fontFamily = Inter,
+            fontWeight = FontWeight.Normal,
+            fontSize = 10.sp,
+            lineHeight = 13.sp,
         )
 }

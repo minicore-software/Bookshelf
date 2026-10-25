@@ -3,6 +3,7 @@ package com.minicore.bookshelf.navigation
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.navigation.compose.ComposeNavigator
 import androidx.navigation.testing.TestNavHostController
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -17,10 +18,13 @@ import com.minicore.bookshelf.features.library.domain.model.LentBook
 import com.minicore.bookshelf.features.library.domain.model.LibraryBook
 import com.minicore.bookshelf.features.library.domain.model.LibraryCounts
 import com.minicore.bookshelf.features.library.domain.model.OpenLoan
+import com.minicore.bookshelf.features.library.domain.LibraryFilter
 import com.minicore.bookshelf.features.library.ui.LIBRARY_LENT_ROW_TEST_TAG
 import com.minicore.bookshelf.features.library.ui.LIBRARY_READING_ROW_TEST_TAG
 import com.minicore.bookshelf.features.library.ui.LIBRARY_SEARCH_BAR_TEST_TAG
 import com.minicore.bookshelf.features.library.ui.LIBRARY_SEE_ALL_LOANS_TEST_TAG
+import com.minicore.bookshelf.features.library.ui.libraryFilterChipTag
+import com.minicore.bookshelf.features.library.ui.libraryGridCardTag
 import com.minicore.bookshelf.features.library.ui.libraryLentCardTag
 import com.minicore.bookshelf.features.library.ui.libraryReadingCardTag
 import dagger.hilt.android.testing.BindValue
@@ -32,6 +36,8 @@ import java.time.LocalDate
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Rule
@@ -149,6 +155,46 @@ class BookshelfNavGraphTest {
         assertEquals(backStackSizeBefore, navController.currentBackStack.value.size)
     }
 
+    // F8/F9 (plan AC4b): tapping a grid card, and tapping a chip, each leave the route and
+    // back-stack size unchanged - grid taps and chip taps are both no-ops at the nav level.
+    @Test
+    fun populatedGrid_tappingCardOrChip_doesNotChangeTheBackStack() {
+        val repo = fakeRepository as FakeLibraryRepository
+        val readingBook = book(id = 1, status = BookStatus.Reading)
+        val finishedBook = book(id = 2, status = BookStatus.Finished)
+        repo.allBooks.value = listOf(
+            LibraryBook(readingBook, null),
+            LibraryBook(finishedBook, null),
+        )
+
+        lateinit var navController: TestNavHostController
+        composeRule.setContent {
+            navController = TestNavHostController(InstrumentationRegistry.getInstrumentation().targetContext)
+            navController.navigatorProvider.addNavigator(ComposeNavigator())
+            BookshelfTheme {
+                BookshelfNavGraph(navController)
+            }
+        }
+        composeRule.waitForIdle()
+
+        val backStackSizeBefore = navController.currentBackStack.value.size
+
+        composeRule.onNodeWithTag(libraryGridCardTag(readingBook.id)).performScrollTo().performClick()
+        composeRule.waitForIdle()
+        assertEquals(BookshelfDestinations.Home.route, navController.currentDestination?.route)
+        assertEquals(backStackSizeBefore, navController.currentBackStack.value.size)
+
+        composeRule.onNodeWithTag(libraryFilterChipTag(LibraryFilter.Finished)).performScrollTo().performClick()
+        composeRule.waitForIdle()
+        assertEquals(BookshelfDestinations.Home.route, navController.currentDestination?.route)
+        assertEquals(backStackSizeBefore, navController.currentBackStack.value.size)
+
+        composeRule.onNodeWithTag(libraryGridCardTag(finishedBook.id)).performScrollTo().performClick()
+        composeRule.waitForIdle()
+        assertEquals(BookshelfDestinations.Home.route, navController.currentDestination?.route)
+        assertEquals(backStackSizeBefore, navController.currentBackStack.value.size)
+    }
+
     private fun book(id: Long, status: BookStatus) = Book(
         id = id,
         title = "Book $id",
@@ -165,12 +211,28 @@ class BookshelfNavGraphTest {
     )
 }
 
+/**
+ * Status-aware (plan Q1/F8): [reading] and [lent] still feed #20's currently-reading and
+ * lent-out rows exactly as before, but [allBooks] is the single seed for [observeBooks] and the
+ * grid's counts - it is never the same list for every status, unlike a naive fake.
+ */
 class FakeLibraryRepository @Inject constructor() : LibraryRepository {
     val reading = MutableStateFlow<List<LibraryBook>>(emptyList())
     val lent = MutableStateFlow<List<LentBook>>(emptyList())
+    val allBooks = MutableStateFlow<List<LibraryBook>>(emptyList())
 
-    override fun observeBooks(status: BookStatus?): Flow<List<LibraryBook>> = reading
+    override fun observeBooks(status: BookStatus?): Flow<List<LibraryBook>> =
+        allBooks.map { all -> if (status == null) all else all.filter { it.book.status == status } }
+
     override fun observeCurrentlyReading(): Flow<List<LibraryBook>> = reading
     override fun observeLentOutBooks(): Flow<List<LentBook>> = lent
-    override fun observeCounts(): Flow<LibraryCounts> = MutableStateFlow(LibraryCounts(0, 0, 0, 0, 0))
+    override fun observeCounts(): Flow<LibraryCounts> = combine(allBooks, lent) { books, lentBooks ->
+        LibraryCounts(
+            all = books.size,
+            reading = books.count { it.book.status == BookStatus.Reading },
+            finished = books.count { it.book.status == BookStatus.Finished },
+            wantToRead = books.count { it.book.status == BookStatus.WantToRead },
+            lentOut = lentBooks.size,
+        )
+    }
 }

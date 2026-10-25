@@ -1,9 +1,12 @@
 package com.minicore.bookshelf.features.library.ui
 
+import androidx.lifecycle.SavedStateHandle
 import com.minicore.bookshelf.core.model.Book
 import com.minicore.bookshelf.core.model.BookStatus
 import com.minicore.bookshelf.features.library.domain.CurrentDateProvider
+import com.minicore.bookshelf.features.library.domain.LibraryFilter
 import com.minicore.bookshelf.features.library.domain.LibraryRepository
+import com.minicore.bookshelf.features.library.domain.ObserveLibraryGridUseCase
 import com.minicore.bookshelf.features.library.domain.ObserveLibraryRowsUseCase
 import com.minicore.bookshelf.features.library.domain.model.LentBook
 import com.minicore.bookshelf.features.library.domain.model.LibraryBook
@@ -16,6 +19,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -30,14 +34,18 @@ import org.junit.Test
 private class FakeLibraryRepository : LibraryRepository {
     val reading = MutableStateFlow<List<LibraryBook>>(emptyList())
     val lent = MutableStateFlow<List<LentBook>>(emptyList())
+    val books = MutableStateFlow<List<LibraryBook>>(emptyList())
+    val counts = MutableStateFlow(LibraryCounts(0, 0, 0, 0, 0))
 
-    override fun observeBooks(status: BookStatus?): Flow<List<LibraryBook>> = reading
+    override fun observeBooks(status: BookStatus?): Flow<List<LibraryBook>> =
+        books.map { all -> if (status == null) all else all.filter { it.book.status == status } }
+
     override fun observeCurrentlyReading(): Flow<List<LibraryBook>> = reading
     override fun observeLentOutBooks(): Flow<List<LentBook>> = lent
-    override fun observeCounts(): Flow<LibraryCounts> = MutableStateFlow(LibraryCounts(0, 0, 0, 0, 0))
+    override fun observeCounts(): Flow<LibraryCounts> = counts
 }
 
-/** AC1/AC2: [LibraryViewModel] starts [LibraryUiState.Loading], then emits [LibraryUiState.Content]. */
+/** AC1/AC2 (plan FF2): [LibraryViewModel] starts [LibraryUiState.Loading], then [LibraryUiState.Content]. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class LibraryViewModelTest {
 
@@ -55,8 +63,25 @@ class LibraryViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun viewModel() = LibraryViewModel(
+    private fun viewModel(savedStateHandle: SavedStateHandle = SavedStateHandle()) = LibraryViewModel(
         ObserveLibraryRowsUseCase(repository, CurrentDateProvider(Provider { clock })),
+        ObserveLibraryGridUseCase(repository),
+        savedStateHandle,
+    )
+
+    private fun book(id: Long, status: BookStatus = BookStatus.Reading) = Book(
+        id = id,
+        title = "Book $id",
+        author = "Author",
+        isbn = null,
+        coverUri = null,
+        genre = null,
+        pageCount = null,
+        publishedYear = null,
+        status = status,
+        rating = null,
+        synopsis = null,
+        createdAt = Instant.EPOCH,
     )
 
     @Test
@@ -67,30 +92,57 @@ class LibraryViewModelTest {
     }
 
     @Test
-    fun afterRepositoryEmits_stateBecomesContent() = runTest(dispatcher) {
+    fun afterRepositoryEmits_stateBecomesContent_withGridFilterAll() = runTest(dispatcher) {
         val viewModel = viewModel()
         val collector = mutableListOf<LibraryUiState>()
         val job = launch { viewModel.uiState.collect { collector.add(it) } }
 
-        val book = Book(
-            id = 1,
-            title = "A Book",
-            author = "Author",
-            isbn = null,
-            coverUri = null,
-            genre = null,
-            pageCount = null,
-            publishedYear = null,
-            status = BookStatus.Reading,
-            rating = null,
-            synopsis = null,
-            createdAt = Instant.EPOCH,
-        )
+        val book = book(1)
         repository.reading.value = listOf(LibraryBook(book, null))
         dispatcher.scheduler.runCurrent()
 
-        assertTrue(collector.last() is LibraryUiState.Content)
-        assertEquals(listOf(book), (collector.last() as LibraryUiState.Content).rows.currentlyReading)
+        val content = collector.last()
+        assertTrue(content is LibraryUiState.Content)
+        assertEquals(listOf(book), (content as LibraryUiState.Content).rows.currentlyReading)
+        assertEquals(LibraryFilter.All, content.grid.filter)
+
+        job.cancel()
+    }
+
+    // FF2: rapid taps - only the latest-selected filter's content is ever emitted.
+    @Test
+    fun rapidFilterTaps_onlyTheLatestFilterIsEverEmitted() = runTest(dispatcher) {
+        val viewModel = viewModel()
+        val collector = mutableListOf<LibraryUiState>()
+        val job = launch { viewModel.uiState.collect { collector.add(it) } }
+        dispatcher.scheduler.runCurrent()
+
+        viewModel.onFilterSelected(LibraryFilter.Finished)
+        viewModel.onFilterSelected(LibraryFilter.LentOut)
+        dispatcher.scheduler.runCurrent()
+
+        val filters = collector.filterIsInstance<LibraryUiState.Content>().map { it.grid.filter }
+        assertTrue("Finished must never appear once LentOut was selected before it landed", LibraryFilter.Finished !in filters)
+        assertEquals(LibraryFilter.LentOut, (collector.last() as LibraryUiState.Content).grid.filter)
+        val loadingEmissionsAfterFirstContent = collector.dropWhile { it == LibraryUiState.Loading }.count { it == LibraryUiState.Loading }
+        assertEquals("state must never fall back to Loading on a chip tap", 0, loadingEmissionsAfterFirstContent)
+
+        job.cancel()
+    }
+
+    // FF2/Q8: a ViewModel restored with LentOut pre-selected starts on LentOut, even when that
+    // filter's result is empty.
+    @Test
+    fun restoredFromSavedStateHandle_startsOnLentOut_evenWhenItsResultIsEmpty() = runTest(dispatcher) {
+        val savedStateHandle = SavedStateHandle(mapOf("library_filter" to LibraryFilter.LentOut))
+        val viewModel = viewModel(savedStateHandle)
+        val collector = mutableListOf<LibraryUiState>()
+        val job = launch { viewModel.uiState.collect { collector.add(it) } }
+        dispatcher.scheduler.runCurrent()
+
+        val content = collector.last() as LibraryUiState.Content
+        assertEquals(LibraryFilter.LentOut, content.grid.filter)
+        assertTrue(content.grid.books.isEmpty())
 
         job.cancel()
     }

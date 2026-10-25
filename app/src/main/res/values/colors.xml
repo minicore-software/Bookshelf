@@ -21,4 +21,10 @@
     <color name="cover_4_bg">#5C6B8A</color>
     <color name="cover_5_bg">#6B4A63</color>
     <color name="cover_6_bg">#8A9566</color>
+
+    <!-- Library grid (BOOKSHELF-0021) -->
+    <color name="status_reading">#3F7A5B</color>
+    <color name="status_want_to_read">#9B8F7A</color>
+    <color name="gold">#C9A227</color>
+    <color name="terracotta">#C1693C</color>
 </resources>
