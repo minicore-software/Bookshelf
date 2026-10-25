@@ -13,7 +13,8 @@ fun BookshelfNavGraph(navController: NavHostController) {
         startDestination = BookshelfDestinations.Home.route
     ) {
         composable(BookshelfDestinations.Home.route) {
-            LibraryScreen()
+            // stub until search ships (epic #17 D9)
+            LibraryScreen(onSearchClick = {})
         }
     }
 }

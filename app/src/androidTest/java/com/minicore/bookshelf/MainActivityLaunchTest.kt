@@ -5,12 +5,15 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.minicore.bookshelf.features.library.ui.LIBRARY_SEARCH_BAR_TEST_TAG
 import com.minicore.bookshelf.features.splash.ui.SPLASH_SCREEN_TEST_TAG
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -86,6 +89,22 @@ class MainActivityLaunchTest {
         composeRule.waitForIdle()
 
         composeRule.onAllNodesWithTag(SPLASH_SCREEN_TEST_TAG).assertCountEquals(0)
+    }
+
+    // F11/AC4(c): tapping the stub search bar at the app level is a no-op — the activity stays
+    // RESUMED, the title is still displayed, and nothing crashes.
+    @Test
+    fun tappingSearchBar_afterSplash_staysResumedAndDisplaysTitle() {
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.onAllNodesWithTag(SPLASH_SCREEN_TEST_TAG).fetchSemanticsNodes().isEmpty()
+        }
+
+        composeRule.onNodeWithTag(LIBRARY_SEARCH_BAR_TEST_TAG).performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(Lifecycle.State.RESUMED, composeRule.activityRule.scenario.state)
+        composeRule.onNodeWithText(composeRule.activity.getString(R.string.app_name))
+            .assertIsDisplayed()
     }
 
     private val Configuration.isNightMode: Boolean
