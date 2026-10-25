@@ -14,15 +14,20 @@ import com.minicore.bookshelf.R
  * - Upstream: the Fraunces family by Undercase Type (SIL OFL 1.1),
  *   https://github.com/undercasetype/Fraunces, mirrored at
  *   https://github.com/google/fonts/blob/main/ofl/fraunces/Fraunces%5BSOFT,WONK,opsz,wght%5D.ttf
- * - Source file fetched: `Fraunces[SOFT,WONK,opsz,wght].ttf` from the `google/fonts` `main`
- *   branch (SHA-256 `177ff6c0f14e5550a3c624247cd1189611d4eb65d000b14944c63d967958abbb`).
  * - No static 24pt SemiBold cut is published upstream (the `undercasetype/Fraunces` v1.0 release
- *   only ships static 9pt/72pt/144pt cuts; Google Fonts ships the variable font only). This file
- *   was produced from the variable font above with `fonttools varLib.instancer`, pinning
- *   `opsz=24 wght=600 SOFT=0 WONK=0`, which drops the `fvar` table and yields a genuinely static
- *   instance (verified: no `fvar` table; `name` table reports family "Fraunces", subfamily
- *   "SemiBold"). Committed file SHA-256:
- *   `52cf8171cb5bd629cae5de80beb077762b22ae01478aa07ced585bf192ce110e`.
+ *   only ships static 9pt/72pt/144pt cuts; Google Fonts ships the variable font only), so this
+ *   file is produced from the variable font by `tools/fraunces-font/generate.py`: pin
+ *   `opsz=24 wght=600 SOFT=0 WONK=0` with `fonttools.varLib.instancer` (`updateFontNames=False`,
+ *   since the font's STAT table has no Axis Value for `opsz=24` — only 9/72/144 — so
+ *   `updateFontNames=True` fails with "Cannot find Axis Values {'opsz': 24.0}"), drop the
+ *   resulting STAT table, drop the now-stale STAT axis-value name records, and overwrite the
+ *   family/subfamily name records (IDs 1, 2, 3, 4, 5, 6, 16, 17) to "Fraunces"/"SemiBold",
+ *   following Google Fonts' own naming convention for Fraunces's static optical-size cuts. See
+ *   that script for the exact, pinned, reproducible steps (source commit SHA, fonttools
+ *   version, source SHA-256) — this comment only summarizes them.
+ * - Run `python tools/fraunces-font/generate.py check` to verify the committed file's
+ *   invariants (no `fvar`/`STAT`, family "Fraunces", subfamily "SemiBold") against a fresh
+ *   instance built from the pinned source.
  */
 private val Fraunces = FontFamily(Font(R.font.fraunces_semibold, FontWeight.SemiBold))
 
