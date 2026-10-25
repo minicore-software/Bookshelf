@@ -18,7 +18,9 @@ class BookshelfDatabaseTest {
     @Before
     fun createDatabase() {
         val context = ApplicationProvider.getApplicationContext<Context>()
-        database = Room.inMemoryDatabaseBuilder(context, BookshelfDatabase::class.java).build()
+        database = Room.inMemoryDatabaseBuilder(context, BookshelfDatabase::class.java)
+            .applyBookshelfConfig()
+            .build()
     }
 
     @After
