@@ -7,6 +7,7 @@ import java.time.ZoneId
 import java.time.ZoneOffset
 import javax.inject.Provider
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
@@ -150,5 +151,38 @@ class CurrentDateProviderTest {
         )
 
         job.cancel()
+    }
+
+    // 39d75db regression guard: the clock must be re-fetched from the Provider on every
+    // collection, not captured once (e.g. as a property) and reused. A Provider that returns a
+    // UTC clock on its first get() and an America/New_York clock on its second must therefore
+    // see those two zones reflected across two separate collections - a single shared clock
+    // would make both collections report the same date.
+    @Test
+    fun reFetchesClockFromProviderOnEachCollection() = runTest {
+        // 2026-06-16T02:00Z is 2026-06-16 in UTC but still 2026-06-15 in America/New_York
+        // (EDT, UTC-4).
+        val instant = Instant.parse("2026-06-16T02:00:00Z")
+        val utcClock = Clock.fixed(instant, ZoneOffset.UTC)
+        val newYorkClock = Clock.fixed(instant, ZoneId.of("America/New_York"))
+        var getCallCount = 0
+        val provider = CurrentDateProvider(
+            Provider {
+                getCallCount++
+                if (getCallCount == 1) utcClock else newYorkClock
+            },
+        )
+
+        val firstCollectionDate = provider.observe().first()
+        val secondCollectionDate = provider.observe().first()
+
+        assertEquals(LocalDate.of(2026, 6, 16), firstCollectionDate)
+        assertEquals(LocalDate.of(2026, 6, 15), secondCollectionDate)
+        assertEquals(
+            "clockProvider.get() must be called exactly once per collection, not reused " +
+                "across collections",
+            2,
+            getCallCount,
+        )
     }
 }
