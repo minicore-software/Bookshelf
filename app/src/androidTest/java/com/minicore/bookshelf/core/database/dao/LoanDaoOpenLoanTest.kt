@@ -66,11 +66,12 @@ class LoanDaoOpenLoanTest {
         borrowerName: String = "Borrower",
         returnedAt: Instant? = null,
         dueAt: LocalDate = LocalDate.of(2026, 11, 1),
+        loanedAt: Instant = Instant.ofEpochMilli(10_000),
     ) = LoanEntity(
         bookId = bookId,
         borrowerName = borrowerName,
         borrowerContact = null,
-        loanedAt = Instant.ofEpochMilli(10_000),
+        loanedAt = loanedAt,
         dueAt = dueAt,
         returnedAt = returnedAt,
         remindEnabled = false,
@@ -96,11 +97,25 @@ class LoanDaoOpenLoanTest {
     fun oneOpenLoan_lentBookUsesOpenLoanDataNotReturnedLoan() = runTest {
         val bookA = insertBook("Book A")
         insertBook("Book B")
+        val returnedLoanedAt = Instant.ofEpochMilli(5_000)
+        val openLoanedAt = Instant.ofEpochMilli(15_000)
         database.loanDao().insert(
-            loanFor(bookA, borrowerName = "Old Borrower", returnedAt = Instant.ofEpochMilli(20_000))
+            loanFor(
+                bookA,
+                borrowerName = "Old Borrower",
+                returnedAt = Instant.ofEpochMilli(20_000),
+                loanedAt = returnedLoanedAt,
+            )
         )
         val openDueAt = LocalDate.of(2026, 12, 25)
-        database.loanDao().insert(loanFor(bookA, borrowerName = "Current Borrower", dueAt = openDueAt))
+        database.loanDao().insert(
+            loanFor(
+                bookA,
+                borrowerName = "Current Borrower",
+                dueAt = openDueAt,
+                loanedAt = openLoanedAt,
+            )
+        )
 
         val lentOut = database.bookDao().observeLentOutBooks().first()
 
@@ -108,7 +123,14 @@ class LoanDaoOpenLoanTest {
         assertEquals(bookA, lentOut.single().book.id)
         assertEquals("Current Borrower", lentOut.single().openLoanBorrowerName)
         assertEquals(openDueAt, lentOut.single().openLoanDueAt)
+        assertEquals(openLoanedAt, lentOut.single().openLoanLoanedAt)
         assertEquals(1, database.loanDao().observeOpenLoanCount().first())
+
+        val libraryRows = database.bookDao().observeLibraryBooks(null).first()
+        val bookARow = libraryRows.single { it.book.id == bookA }
+        assertEquals("Current Borrower", bookARow.openLoanBorrowerName)
+        assertEquals(openDueAt, bookARow.openLoanDueAt)
+        assertEquals(openLoanedAt, bookARow.openLoanLoanedAt)
     }
 
     // A12: attempted 2nd open loan on the same book throws; exactly one open loan remains; the
@@ -147,6 +169,16 @@ class LoanDaoOpenLoanTest {
         assertTrue(triggerNames.contains("loans_single_open_loan_update"))
     }
 
+    // FF1: foreign key enforcement is on, so the loans.book_id -> books.id cascade (A14) is
+    // real, not a no-op.
+    @Test
+    fun foreignKeysPragma_isEnabled() = runTest {
+        database.openHelper.readableDatabase.query("PRAGMA foreign_keys").use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals(1, cursor.getInt(0))
+        }
+    }
+
     // A15 (should): update-trigger reversal - flipping a returned loan back to NULL while
     // another loan on the same book is open throws.
     @Test
@@ -159,6 +191,26 @@ class LoanDaoOpenLoanTest {
         try {
             database.openHelper.writableDatabase.execSQL(
                 "UPDATE loans SET returned_at = NULL WHERE id = $returnedLoanId"
+            )
+            fail("expected SQLiteConstraintException")
+        } catch (expected: SQLiteConstraintException) {
+            // expected
+        }
+    }
+
+    // A15b (optional, closes the gap on the other branch of the update trigger): moving an
+    // open loan's book_id onto a book that already has its own open loan throws, even though
+    // the moved loan's own returned_at never changes.
+    @Test
+    fun updatingLoanBookId_ontoBookWithExistingOpenLoan_throws() = runTest {
+        val bookA = insertBook("Book A")
+        val bookC = insertBook("Book C")
+        database.loanDao().insert(loanFor(bookA, borrowerName = "Borrower A"))
+        val loanOnC = database.loanDao().insert(loanFor(bookC, borrowerName = "Borrower C"))
+
+        try {
+            database.openHelper.writableDatabase.execSQL(
+                "UPDATE loans SET book_id = $bookA WHERE id = $loanOnC"
             )
             fail("expected SQLiteConstraintException")
         } catch (expected: SQLiteConstraintException) {

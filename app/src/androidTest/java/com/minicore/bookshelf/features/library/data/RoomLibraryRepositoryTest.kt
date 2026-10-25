@@ -10,6 +10,7 @@ import com.minicore.bookshelf.core.database.entity.BookEntity
 import com.minicore.bookshelf.core.database.entity.LoanEntity
 import com.minicore.bookshelf.core.model.BookStatus
 import com.minicore.bookshelf.features.library.domain.model.LibraryCounts
+import com.minicore.bookshelf.features.library.domain.model.OpenLoan
 import java.time.Instant
 import java.time.LocalDate
 import kotlinx.coroutines.flow.first
@@ -81,13 +82,19 @@ class RoomLibraryRepositoryTest {
     fun observeBooks_withNullStatus_returnsAllBooksWithOverlay() = runTest {
         val wantToRead = insertBook("Want", BookStatus.WantToRead, 1_000)
         val lent = insertBook("Lent", BookStatus.Reading, 2_000)
-        insertOpenLoan(lent, borrowerName = "Jamie")
+        val loanId = insertOpenLoan(lent, borrowerName = "Jamie")
 
         val books = repository.observeBooks().first()
 
         assertEquals(listOf(lent, wantToRead), books.map { it.book.id })
         assertNull(books.single { it.book.id == wantToRead }.openLoan)
-        assertEquals("Jamie", books.single { it.book.id == lent }.openLoan?.borrowerName)
+        val expectedOpenLoan = OpenLoan(
+            loanId = loanId,
+            borrowerName = "Jamie",
+            loanedAt = Instant.ofEpochMilli(1_000),
+            dueAt = LocalDate.of(2026, 11, 1),
+        )
+        assertEquals(expectedOpenLoan, books.single { it.book.id == lent }.openLoan)
     }
 
     @Test

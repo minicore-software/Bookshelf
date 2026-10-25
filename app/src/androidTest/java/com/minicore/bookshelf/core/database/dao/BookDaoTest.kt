@@ -129,13 +129,12 @@ class BookDaoTest {
     }
 
     // A14: cascade delete - book with 2 loans (1 returned, 1 open), delete book -> both loans
-    // gone via FK cascade.
+    // gone via FK cascade, the open one included.
     @Test
-    fun deletingBook_cascadesToItsLoans() = runTest {
+    fun deletingBook_cascadesToItsLoans_includingTheOpenOne() = runTest {
         val bookId = insertBook("Cascading", BookStatus.Reading, Instant.ofEpochMilli(1_000))
         insertLoan(bookId, returnedAt = Instant.ofEpochMilli(5_000))
-        val openLoanId = insertLoan(bookId, returnedAt = null)
-        database.loanDao().markReturned(openLoanId, Instant.ofEpochMilli(6_000))
+        insertLoan(bookId, returnedAt = null)
 
         database.bookDao().deleteById(bookId)
 

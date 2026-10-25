@@ -68,6 +68,7 @@ Bookshelf has no real schema yet. `BookshelfDatabase` holds only a scaffold plac
 * **Constraint:** persisted `BookStatus` strings never change without a data migration.
 * **Constraint:** any future migration that recreates the `loans` table must keep the triggers. `onOpen` re-asserts them, and the migration test must check `sqlite_master`.
 * **Follow-up:** the lending epic adds repository write methods that map the trigger's `SQLiteConstraintException` to a domain `AlreadyOnLoan` result.
+* **Constraint:** any future write on `loans` that changes `returned_at` or `book_id` must go through `@Update`/a parameterized `UPDATE` query, never `@Upsert`. Room's upsert path re-inserts on conflict, which would hit the insert trigger's `EXISTS` check against the row's own now-stale pre-update state and could abort a legitimate update (or, depending on Room's upsert SQL shape, bypass the intended semantics entirely).
 * **Follow-up:** the lending epic decides whether `borrower_contact` (third-party PII) is excluded from cloud backup, which currently includes the whole database.
 * **Follow-up:** revisit identity (UUIDs) if sync, multi-device merge or file import of other users' libraries is ever added.
 

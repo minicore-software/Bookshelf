@@ -33,3 +33,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reproducible `tools/fraunces-font/generate.py` script (`generate` / `check`),
   pinned to a source commit and fonttools version, with its OFL license bundled
   under `app/src/main/assets/licenses/`. Closes out epic #6 (App Bootstrap).
+- Book/Loan Room schema (`core/model`, `core/database/{entity,converter,dao}`): `BookEntity`
+  and `LoanEntity` tables matching the domain model, with `Instant`/`LocalDate`
+  (epoch-day)/`BookStatus` (stable `want_to_read`/`reading`/`finished` strings) type
+  converters. At most one open loan (`returned_at IS NULL`) per book is enforced by two
+  SQLite triggers recreated on every database open ([ADR-001](docs/adr/ADR-001-Model-Book-And-Loan-Tables-With-Trigger-Enforced-Open-Loan.md)), and `loans.book_id` cascades on
+  book delete. Replaces the scaffold `PlaceholderEntity`; schema stays at version 1. A
+  read-only `LibraryRepository`/`RoomLibraryRepository` (`features/library/{domain,data}`)
+  exposes all books, per-status books, lent-out books (joined with borrower/due date) and
+  per-status + lent-out counts, for the Library screen epic (#17) to build on. **Existing
+  debug installs must be uninstalled once** before installing this build: the schema's
+  identity hash changed, so Room throws on open instead of migrating. (#18)
