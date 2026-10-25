@@ -154,10 +154,16 @@ class CurrentDateProviderTest {
     }
 
     // 39d75db regression guard: the clock must be re-fetched from the Provider on every
-    // collection, not captured once (e.g. as a property) and reused. A Provider that returns a
-    // UTC clock on its first get() and an America/New_York clock on its second must therefore
-    // see those two zones reflected across two separate collections - a single shared clock
-    // would make both collections report the same date.
+    // collection, not captured once (e.g. as a property of observe()'s Flow and reused across
+    // collections of it). This is exactly how production relies on it: ObserveLibraryRowsUseCase
+    // builds the combine() over observe() once, and LibraryViewModel's
+    // stateIn(WhileSubscribed) re-collects that same Flow instance on return to foreground - so
+    // the test collects one Flow instance from a single observe() call twice, rather than calling
+    // observe() twice. A Provider that returns a UTC clock on its first get() and an
+    // America/New_York clock on its second must therefore see those two zones reflected across
+    // the two collections of that one Flow - a single shared clock, or a clockProvider.get()
+    // hoisted out of the flow{} builder into observe() itself, would make both collections report
+    // the same date.
     @Test
     fun reFetchesClockFromProviderOnEachCollection() = runTest {
         // 2026-06-16T02:00Z is 2026-06-16 in UTC but still 2026-06-15 in America/New_York
@@ -173,8 +179,9 @@ class CurrentDateProviderTest {
             },
         )
 
-        val firstCollectionDate = provider.observe().first()
-        val secondCollectionDate = provider.observe().first()
+        val flow = provider.observe()
+        val firstCollectionDate = flow.first()
+        val secondCollectionDate = flow.first()
 
         assertEquals(LocalDate.of(2026, 6, 16), firstCollectionDate)
         assertEquals(LocalDate.of(2026, 6, 15), secondCollectionDate)
