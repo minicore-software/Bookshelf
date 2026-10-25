@@ -72,6 +72,7 @@ app/src/main/java/com/minicore/bookshelf/
  │    │    ├── converter/   # BookshelfConverters (Instant/LocalDate/BookStatus <-> column types)
  │    │    └── dao/         # BookDao, LoanDao, LibraryBookRow/StatusCountRow projections
  │    ├── designsystem/    # BookshelfTheme, palette, typography (Fraunces/paper/ink/forest)
+ │    │    └── component/  # Shared composables used across features (e.g. BookCover)
  │    ├── scanner/         # ISBN barcode scanner (ML Kit)
  │    └── lookup/          # Book metadata lookup (title/author/ISBN search, future)
  └── di/                   # Hilt modules
@@ -122,6 +123,7 @@ It intentionally avoids enterprise-level overengineering while keeping a scalabl
 | KSP | 2.3.12 |
 | Compose BOM | 2026.09.00 |
 | Hilt | 2.60.1 |
+| Hilt Android Testing | 2.60.1 |
 | Room | 2.8.5 |
 | Navigation Compose | 2.10.2 |
 | Hilt Navigation Compose | 1.4.0 |

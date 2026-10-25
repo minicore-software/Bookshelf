@@ -168,7 +168,13 @@ Commit the regenerated file under `app/src/main/res/font/` whenever the pinned s
 
 ## 🔠 The bundled Inter font
 
-The Library header's tagline and search placeholder are rendered with a bundled, static Inter Regular font (`app/src/main/res/font/inter_regular.ttf`), for the same offline-first reasoning as Fraunces above. Unlike Fraunces, upstream publishes a ready-made static instance directly — no local instancing step is needed. See the provenance and SHA-256 comment in `core/designsystem/Type.kt` for where the file came from, and `app/src/main/assets/licenses/Inter-OFL.txt` for its SIL OFL 1.1 license (shipped outside `res/font/`, which AAPT2 restricts to font files only).
+The Library header's tagline and search placeholder, and the Library rows' trailing labels/borrower/due captions, are rendered with bundled, static Inter Regular and SemiBold fonts (`app/src/main/res/font/inter_regular.ttf`, `inter_semibold.ttf`), for the same offline-first reasoning as Fraunces above. Unlike Fraunces, upstream publishes ready-made static instances directly — no local instancing step is needed. See the provenance and SHA-256 comment in `core/designsystem/Type.kt` for where each file came from, and `app/src/main/assets/licenses/Inter-OFL.txt` for its SIL OFL 1.1 license (shipped outside `res/font/`, which AAPT2 restricts to font files only).
+
+---
+
+## 🧪 Testing notes
+
+Instrumented tests run under a custom `HiltTestRunner` (`app/src/androidTest/.../HiltTestRunner.kt`), which substitutes `HiltTestApplication` for the real `BookshelfApp` so `@HiltAndroidTest`-annotated tests can `@BindValue`/`@UninstallModules` a fake repository. `HiltTestActivity` (`app/src/debug/`) is a minimal `@AndroidEntryPoint` activity for tests that need `hiltViewModel()` without launching `MainActivity`; it is debug-only and never ships in release.
 
 ---
 
