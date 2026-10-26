@@ -65,6 +65,14 @@ class LibraryContrastTest {
     @Test
     fun inkSoft_onPaperBright_unselectedChip_passesAA() = assertAA("ink_soft", "ink_soft", "paper_bright")
 
+    // Library empty-state panel (BOOKSHELF-0022, plan FF2): heading (forest) and body (ink_muted)
+    // text on the panel's paper_bright fill.
+    @Test
+    fun forest_onPaperBright_emptyStateHeading_passesAA() = assertAA("forest", "forest", "paper_bright")
+
+    @Test
+    fun inkMuted_onPaperBright_emptyStateBody_passesAA() = assertAA("ink_muted", "ink_muted", "paper_bright")
+
     // The dot fills (status_reading, gold, status_want_to_read) are deliberately NOT asserted
     // here - the mock's own values fall below WCAG 1.4.11's 3:1 non-text contrast guideline for
     // two of the three (finished 2.09:1, want-to-read 2.75:1), and that is accepted as mocked,

@@ -275,17 +275,20 @@ class LibraryGridTest {
         composeRule.onNodeWithTag(libraryGridCardTag(2)).assertIsDisplayed()
     }
 
-    // G5: a 0-book library hides the chip row, the "Your library" title and the grid entirely -
-    // the existing #20 "exactly 3 texts" assertion (LibraryScreenTest) must keep passing.
+    // G5, updated for BOOKSHELF-0022 AC1-AC3: a 0-book library hides the chip row, the "Your
+    // library" title and the grid entirely, and shows the empty-state panel instead - the
+    // #20/#22 "exactly 5 texts" assertion (LibraryScreenTest) must keep passing.
     @Test
     fun emptyLibrary_hidesChipsTitleAndGrid() {
         setContent(LibraryGrid.Empty)
 
         composeRule.onAllNodesWithTag(LIBRARY_FILTER_CHIPS_TEST_TAG).assertCountEquals(0)
         composeRule.onAllNodesWithTag(LIBRARY_GRID_TITLE_TEST_TAG).assertCountEquals(0)
-        // Only the header's 3 texts remain (title, tagline, search placeholder) - the existing
-        // #20 LibraryScreenTest "exactly 3 texts" assertion for an empty library still holds.
-        composeRule.onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsProperties.Text)).assertCountEquals(3)
+        composeRule.onNodeWithTag(LIBRARY_EMPTY_STATE_TEST_TAG).assertIsDisplayed()
+        // The header's 3 texts (title, tagline, search placeholder) plus the empty-state
+        // heading and body - the #20/#22 LibraryScreenTest "exactly 5 texts" assertion for an
+        // empty library still holds.
+        composeRule.onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsProperties.Text)).assertCountEquals(5)
     }
 
     // G5/F13: non-zero total counts but the selected filter matches nothing - chips and title
@@ -298,6 +301,10 @@ class LibraryGridTest {
         composeRule.onNodeWithTag(LIBRARY_FILTER_CHIPS_TEST_TAG).assertIsDisplayed()
         composeRule.onNodeWithTag(LIBRARY_GRID_TITLE_TEST_TAG).assertIsDisplayed()
         composeRule.onNodeWithText("Lent out · 0").assertExists()
+        // AC2/AC3 disambiguation (BOOKSHELF-0022): a non-empty library with a zero-result filter
+        // keeps the chips and shows no empty-state panel - that panel is reserved for a truly
+        // empty library (0 books total), not "this filter matches nothing".
+        composeRule.onAllNodesWithTag(LIBRARY_EMPTY_STATE_TEST_TAG).assertCountEquals(0)
         // The header's 3 texts + the 5 chip labels + the grid title - no card and no invented
         // empty message.
         composeRule.onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsProperties.Text)).assertCountEquals(9)

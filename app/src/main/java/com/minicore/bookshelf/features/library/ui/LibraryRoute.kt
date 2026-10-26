@@ -12,6 +12,7 @@ fun LibraryRoute(
     onSearchClick: () -> Unit,
     onBookClick: (bookId: Long) -> Unit,
     onSeeAllLoansClick: () -> Unit,
+    onAddBookClick: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: LibraryViewModel = hiltViewModel(),
 ) {
@@ -24,5 +25,6 @@ fun LibraryRoute(
         onBookClick = onBookClick,
         onSeeAllLoansClick = onSeeAllLoansClick,
         onFilterSelected = viewModel::onFilterSelected,
+        onAddBookClick = onAddBookClick,
     )
 }
