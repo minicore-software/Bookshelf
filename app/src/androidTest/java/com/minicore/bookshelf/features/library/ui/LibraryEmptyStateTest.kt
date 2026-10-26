@@ -289,7 +289,8 @@ class LibraryEmptyStateTest {
     }
 
     // At 2x font scale on a 320dp-wide, 640dp-tall viewport, the empty-state heading and body are
-    // fully readable after scrolling, and are not permanently covered by the FAB.
+    // fully readable after scrolling, and the body's bottom edge never overlaps the FAB's top
+    // edge (same bounds-based overlap check as FF4's populated-grid test).
     @Test
     fun emptyState_atDoubleFontScaleAndNarrowShortScreen_remainsReadableAfterScroll() {
         composeRule.setContent {
@@ -307,5 +308,10 @@ class LibraryEmptyStateTest {
 
         composeRule.onNodeWithText(emptyTitle).performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText(emptyBody).performScrollTo().assertIsDisplayed()
+
+        val bodyBottom = composeRule.onNodeWithText(emptyBody).fetchSemanticsNode().boundsInRoot.bottom
+        val fabTop = composeRule.onNodeWithTag(LIBRARY_ADD_BOOK_FAB_TEST_TAG).fetchSemanticsNode().boundsInRoot.top
+
+        assertTrue("bodyBottom=$bodyBottom fabTop=$fabTop", bodyBottom <= fabTop)
     }
 }
