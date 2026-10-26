@@ -66,3 +66,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   so `BookshelfNavGraphTest`/`MainActivityLaunchTest` can inject a fake
   repository. Both card taps and "See all" are no-ops for now (Book Detail
   and My Loans ship in later tickets). (#20)
+- Library grid and filter chips: a 3-column book grid below the existing
+  rows, preceded by a single-choice chip row ("All", "Reading", "Finished",
+  "Want to read", "Lent out") showing live counts from `LibraryRepository`.
+  Selecting a chip re-queries the matching repository flow — the "Lent out"
+  chip uses the open-loan join, never a book's own status — and restores
+  the selection across rotation and process death via `SavedStateHandle`. Each
+  grid card shows the cover (a new `BookCover` `Grid` variant with no title
+  overlay), title, a colour-coded status dot (reading/finished/want-to-read/
+  lent, the lent dot overlaying the status as a hollow terracotta ring), and a
+  "Lent to <borrower>" caption for books with an open loan, with merged
+  accessible semantics read in title/status/loan order. Card taps remain
+  no-ops (Book Detail ships later). (#21)
