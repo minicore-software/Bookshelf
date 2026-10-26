@@ -2,6 +2,7 @@ package com.minicore.bookshelf.features.library.ui
 
 import androidx.compose.material3.Surface
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.DeviceConfigurationOverride
 import androidx.compose.ui.test.FontScale
@@ -21,6 +22,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.then
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
@@ -290,7 +292,10 @@ class LibraryEmptyStateTest {
 
     // At 2x font scale on a 320dp-wide, 640dp-tall viewport, the empty-state heading and body are
     // fully readable after scrolling, and the body's bottom edge never overlaps the FAB's top
-    // edge (same bounds-based overlap check as FF4's populated-grid test).
+    // edge after scrolling to the end (same bounds-based overlap check as FF4's populated-grid
+    // test, which uses `performScrollToNode` on the grid's own end marker to force maximum
+    // scroll - a minimal `performScrollTo()` only scrolls as far as needed to bring the body into
+    // view, which can still leave it within the FAB's footprint even on a correct UI).
     @Test
     fun emptyState_atDoubleFontScaleAndNarrowShortScreen_remainsReadableAfterScroll() {
         composeRule.setContent {
@@ -309,9 +314,23 @@ class LibraryEmptyStateTest {
         composeRule.onNodeWithText(emptyTitle).performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText(emptyBody).performScrollTo().assertIsDisplayed()
 
+        val bodyBottomBeforeEndScroll = composeRule.onNodeWithText(emptyBody).fetchSemanticsNode().boundsInRoot.bottom
+
+        composeRule.onNodeWithTag(LIBRARY_BODY_TEST_TAG).performSemanticsAction(SemanticsActions.ScrollBy) {
+            it(0f, 10_000f)
+        }
+        composeRule.waitForIdle()
+
         val bodyBottom = composeRule.onNodeWithText(emptyBody).fetchSemanticsNode().boundsInRoot.bottom
         val fabTop = composeRule.onNodeWithTag(LIBRARY_ADD_BOOK_FAB_TEST_TAG).fetchSemanticsNode().boundsInRoot.top
 
+        // Scrolling to the true end can only move the body up (or leave it in place if it was
+        // already at the end) - this rules out the assertion below passing vacuously because no
+        // further scroll ever happened.
+        assertTrue(
+            "bodyBottomBeforeEndScroll=$bodyBottomBeforeEndScroll bodyBottom=$bodyBottom",
+            bodyBottom <= bodyBottomBeforeEndScroll,
+        )
         assertTrue("bodyBottom=$bodyBottom fabTop=$fabTop", bodyBottom <= fabTop)
     }
 }
