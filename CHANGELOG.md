@@ -78,3 +78,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   "Lent to <borrower>" caption for books with an open loan, with merged
   accessible semantics read in title/status/loan order. Card taps remain
   no-ops (Book Detail ships later). (#21)
+- Empty-state Library screen: when the library has 0 books, the
+  currently-reading row, lent-out row, filter chips and grid are hidden
+  (already true after #20/#21) and an "An empty shelf" panel - heading,
+  body copy, existing paper/forest/ink-muted tokens, no new illustration -
+  is shown in their place. A new "Add a book" `FloatingActionButton`
+  (bottom-right, forest fill, hand-drawn plus glyph) is now always visible
+  across loading, empty and populated states as a stub; tapping it is a
+  no-op (`onAddBookClick` hoisted through `LibraryRoute` to
+  `BookshelfNavGraph`, wired up for real once Add Book ships). New
+  `LibraryEmptyState`/`LibraryAddBookFab` composables and an
+  `isLibraryEmpty` predicate on `LibraryUiState.Content`, plus Compose UI
+  tests covering the 0-book state end-to-end (fresh-empty,
+  empty-to-populated, and populated-to-empty via deletion), cold-start
+  loading flash, FAB double-tap, and 2x font scale on a narrow/short
+  screen. (#22)
