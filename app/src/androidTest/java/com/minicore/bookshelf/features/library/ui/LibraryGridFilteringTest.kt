@@ -1,5 +1,10 @@
 package com.minicore.bookshelf.features.library.ui
 
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -93,9 +98,22 @@ class LibraryGridFilteringTest {
         composeRule.onNodeWithTag(libraryFilterChipTag(filter)).performScrollTo().performClick()
     }
 
-    private fun scrollToCard(bookId: Long) {
+    private val gridCardTagPrefixMatcher = SemanticsMatcher("TestTag starts with 'library_grid_card_'") { node ->
+        node.config.getOrNull(SemanticsProperties.TestTag)?.startsWith("library_grid_card_") == true
+    }
+
+    // Scrolls all the way to the end of the grid (the seed is kept small enough to fit one
+    // viewport once scrolled there) and asserts the exact set of composed grid cards - stronger
+    // than individual assertDoesNotExist calls, which a lazy container could satisfy for the
+    // wrong reason (an item simply not yet scrolled into view, rather than genuinely excluded).
+    private fun assertExactlyTheseCardsAreComposed(vararg bookIds: Long) {
         composeRule.onNodeWithTag(LIBRARY_BODY_TEST_TAG)
-            .performScrollToNode(hasTestTag(libraryGridCardTag(bookId)))
+            .performScrollToNode(hasTestTag(LIBRARY_GRID_BOTTOM_TEST_TAG))
+        composeRule.onAllNodes(gridCardTagPrefixMatcher)
+            .assertCountEquals(bookIds.size)
+        for (bookId in bookIds) {
+            composeRule.onNodeWithTag(libraryGridCardTag(bookId)).assertExists()
+        }
     }
 
 
@@ -153,29 +171,22 @@ class LibraryGridFilteringTest {
         composeRule.waitForIdle()
 
         tapChip(LibraryFilter.LentOut)
-        scrollToCard(finishedLent.id)
-        composeRule.onNodeWithTag(libraryGridCardTag(reading.id)).assertDoesNotExist()
-        composeRule.onNodeWithTag(libraryGridCardTag(finishedPlain.id)).assertDoesNotExist()
-        composeRule.onNodeWithTag(libraryGridCardTag(wantToRead.id)).assertDoesNotExist()
+        assertExactlyTheseCardsAreComposed(finishedLent.id)
 
         tapChip(LibraryFilter.Finished)
-        scrollToCard(finishedPlain.id)
-        composeRule.onNodeWithTag(libraryGridCardTag(finishedLent.id)).assertExists()
+        assertExactlyTheseCardsAreComposed(finishedLent.id, finishedPlain.id)
         composeRule.onNodeWithTag(libraryGridLentCaptionTag(finishedLent.id), useUnmergedTree = true).assertExists()
-        composeRule.onNodeWithTag(libraryGridCardTag(reading.id)).assertDoesNotExist()
-        composeRule.onNodeWithTag(libraryGridCardTag(wantToRead.id)).assertDoesNotExist()
+        composeRule.onNode(
+            SemanticsMatcher.expectValue(LibraryStatusDotKindKey, StatusDotKind.Lent)
+                and hasAnyAncestor(hasTestTag(libraryGridCardTag(finishedLent.id))),
+            useUnmergedTree = true,
+        ).assertExists()
 
         tapChip(LibraryFilter.WantToRead)
-        scrollToCard(wantToRead.id)
-        composeRule.onNodeWithTag(libraryGridCardTag(finishedLent.id)).assertDoesNotExist()
-        composeRule.onNodeWithTag(libraryGridCardTag(reading.id)).assertDoesNotExist()
-        composeRule.onNodeWithTag(libraryGridCardTag(finishedPlain.id)).assertDoesNotExist()
+        assertExactlyTheseCardsAreComposed(wantToRead.id)
 
         tapChip(LibraryFilter.All)
-        scrollToCard(reading.id)
-        composeRule.onNodeWithTag(libraryGridCardTag(finishedLent.id)).assertExists()
-        composeRule.onNodeWithTag(libraryGridCardTag(finishedPlain.id)).assertExists()
-        composeRule.onNodeWithTag(libraryGridCardTag(wantToRead.id)).assertExists()
+        assertExactlyTheseCardsAreComposed(reading.id, finishedLent.id, finishedPlain.id, wantToRead.id)
     }
 }
 
