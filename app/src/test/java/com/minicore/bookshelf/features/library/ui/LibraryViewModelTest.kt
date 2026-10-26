@@ -130,6 +130,40 @@ class LibraryViewModelTest {
         job.cancel()
     }
 
+    // FF2: `SavedStateHandle.getStateFlow` conflates away an intermediate filter value before
+    // collection, so a test that merely never sees "Finished" content after switching straight
+    // to LentOut cannot tell flatMapLatest apart from flatMapMerge (an intermediate filter is
+    // never even emitted upstream under either operator). This test lets the Finished filter's
+    // inner flow actually start (an explicit runCurrent after selecting it), then switches to
+    // LentOut and pushes a books change that would affect Finished's own query. Only
+    // flatMapLatest guarantees the Finished inner flow is cancelled and can never re-emit.
+    @Test
+    fun switchingAwayFromAFilter_cancelsItsInnerFlow_soItCanNeverReEmit() = runTest(dispatcher) {
+        val viewModel = viewModel()
+        val collector = mutableListOf<LibraryUiState>()
+        val job = launch { viewModel.uiState.collect { collector.add(it) } }
+        dispatcher.scheduler.runCurrent()
+
+        viewModel.onFilterSelected(LibraryFilter.Finished)
+        dispatcher.scheduler.runCurrent() // Finished's inner flow is now actually subscribed.
+
+        viewModel.onFilterSelected(LibraryFilter.LentOut)
+        dispatcher.scheduler.runCurrent() // flatMapLatest must cancel Finished's inner flow here.
+
+        collector.clear()
+        repository.books.value = listOf(LibraryBook(book(99, BookStatus.Finished), null))
+        dispatcher.scheduler.runCurrent()
+
+        val filtersSeen = collector.filterIsInstance<LibraryUiState.Content>().map { it.grid.filter }
+        assertTrue(
+            "the cancelled Finished filter's inner flow must never re-emit after switching to LentOut",
+            LibraryFilter.Finished !in filtersSeen,
+        )
+        assertTrue(filtersSeen.isEmpty() || filtersSeen.all { it == LibraryFilter.LentOut })
+
+        job.cancel()
+    }
+
     // FF2/Q8: a ViewModel restored with LentOut pre-selected starts on LentOut, even when that
     // filter's result is empty.
     @Test

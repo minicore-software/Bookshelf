@@ -20,10 +20,19 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.minicore.bookshelf.core.designsystem.BookshelfTheme
+import com.minicore.bookshelf.core.model.Book
+import com.minicore.bookshelf.core.model.BookStatus
 import com.minicore.bookshelf.features.library.domain.LibraryFilter
+import com.minicore.bookshelf.features.library.domain.LibraryGrid
 import com.minicore.bookshelf.features.library.domain.LibraryRows
+import com.minicore.bookshelf.features.library.domain.model.LibraryBook
+import com.minicore.bookshelf.features.library.domain.model.LibraryCounts
+import com.minicore.bookshelf.features.library.domain.model.OpenLoan
+import java.time.Instant
+import java.time.LocalDate
 
 const val LIBRARY_BODY_TEST_TAG = "library_body"
+const val LIBRARY_GRID_BOTTOM_TEST_TAG = "library_grid_bottom"
 
 /**
  * The Library home screen. Shows the fixed wordmark header, then a scrolling body with the
@@ -107,7 +116,7 @@ fun LibraryScreen(
                     )
                 }
                 fullSpanItem(key = "grid_bottom") {
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(10.dp).testTag(LIBRARY_GRID_BOTTOM_TEST_TAG))
                 }
             }
         }
@@ -121,12 +130,56 @@ private fun LazyGridScope.fullSpanItem(
     item(key = key, span = { GridItemSpan(maxLineSpan) }) { content() }
 }
 
-@Preview(name = "Library")
+@Preview(name = "Library — empty")
 @Composable
 private fun LibraryScreenPreview() {
     BookshelfTheme {
         Surface(modifier = Modifier.fillMaxSize()) {
             LibraryScreen(uiState = LibraryUiState.Content(LibraryRows(emptyList(), emptyList())))
+        }
+    }
+}
+
+private fun previewScreenBook(id: Long, title: String, status: BookStatus) = Book(
+    id = id,
+    title = title,
+    author = "Author",
+    isbn = null,
+    coverUri = null,
+    genre = null,
+    pageCount = null,
+    publishedYear = null,
+    status = status,
+    rating = null,
+    synopsis = null,
+    createdAt = Instant.EPOCH,
+)
+
+// Plan section 9 step 8: a populated preview, with chips and grid cells, next to Main.dc.html.
+@Preview(name = "Library — populated")
+@Composable
+private fun LibraryScreenPopulatedPreview() {
+    val loan = OpenLoan(loanId = 1, borrowerName = "Priya", loanedAt = Instant.EPOCH, dueAt = LocalDate.now())
+    val reading = previewScreenBook(1, "The Hidden Life of Trees", BookStatus.Reading)
+    val books = listOf(
+        LibraryBook(reading, null),
+        LibraryBook(previewScreenBook(2, "Project Hail Mary", BookStatus.Reading), null),
+        LibraryBook(previewScreenBook(3, "Braiding Sweetgrass", BookStatus.Finished), null),
+        LibraryBook(previewScreenBook(4, "Pachinko", BookStatus.WantToRead), null),
+        LibraryBook(previewScreenBook(5, "Sapiens", BookStatus.Finished), loan),
+    )
+    BookshelfTheme {
+        Surface(modifier = Modifier.fillMaxSize()) {
+            LibraryScreen(
+                uiState = LibraryUiState.Content(
+                    rows = LibraryRows(currentlyReading = listOf(reading), lentOut = emptyList()),
+                    grid = LibraryGrid(
+                        filter = LibraryFilter.All,
+                        counts = LibraryCounts(all = 27, reading = 2, finished = 19, wantToRead = 6, lentOut = 3),
+                        books = books,
+                    ),
+                ),
+            )
         }
     }
 }

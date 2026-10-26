@@ -9,15 +9,18 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -29,16 +32,22 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.minicore.bookshelf.R
 import com.minicore.bookshelf.core.designsystem.BookshelfTheme
 import com.minicore.bookshelf.core.designsystem.LibraryTextStyles
 import com.minicore.bookshelf.core.designsystem.component.BookCover
 import com.minicore.bookshelf.core.designsystem.component.BookCoverVariant
+import com.minicore.bookshelf.core.model.Book
+import com.minicore.bookshelf.core.model.BookStatus
 import com.minicore.bookshelf.features.library.domain.LibraryFilter
 import com.minicore.bookshelf.features.library.domain.countFor
 import com.minicore.bookshelf.features.library.domain.model.LibraryBook
 import com.minicore.bookshelf.features.library.domain.model.LibraryCounts
+import com.minicore.bookshelf.features.library.domain.model.OpenLoan
+import java.time.Instant
+import java.time.LocalDate
 
 const val LIBRARY_FILTER_CHIPS_TEST_TAG = "library_filter_chips"
 const val LIBRARY_GRID_TITLE_TEST_TAG = "library_grid_title"
@@ -109,23 +118,35 @@ private fun LibraryFilterChip(
         LibraryTextStyles.chip
     }
 
+    // A 48dp touch target (plan G11) via an explicit minimum size on the outer, interactive box,
+    // not `Modifier.minimumInteractiveComponentSize()`: that modifier only enlarges the layout
+    // when it comes before every other size-affecting modifier in the *same* node's chain, and
+    // ties the chip's clip/background/border to its enforced (invisible) size, which would
+    // inflate the visible pill to 48dp too - `defaultMinSize` on a dedicated outer `Box`
+    // (the same pattern as #20's "See all" touch target in LibraryRows.kt) keeps the ~31dp
+    // visual pill nested, unaffected, and centred inside the full touch target.
     Box(
         modifier = modifier
-            .minimumInteractiveComponentSize()
-            .clip(shape)
-            .background(backgroundColor)
-            .then(
-                if (!selected) {
-                    Modifier.border(1.dp, MaterialTheme.colorScheme.outlineVariant, shape)
-                } else {
-                    Modifier
-                },
-            )
-            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 7.dp),
+            .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Text(text = label, style = textStyle, color = textColor, maxLines = 1, softWrap = false)
+        Box(
+            modifier = Modifier
+                .clip(shape)
+                .background(backgroundColor)
+                .then(
+                    if (!selected) {
+                        Modifier.border(1.dp, MaterialTheme.colorScheme.outlineVariant, shape)
+                    } else {
+                        Modifier
+                    },
+                )
+                .padding(horizontal = 16.dp, vertical = 7.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(text = label, style = textStyle, color = textColor, maxLines = 1, softWrap = false)
+        }
     }
 }
 
@@ -159,7 +180,6 @@ fun LibraryGridCard(
         modifier = modifier
             .padding(gridCellPadding(column))
             .clickable(onClickLabel = clickLabel, role = Role.Button) { onBookClick(book.id) }
-            .semantics(mergeDescendants = true) {}
             .testTag(libraryGridCardTag(book.id)),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
@@ -215,5 +235,112 @@ internal fun gridCellPadding(column: Int): PaddingValues {
         0 -> PaddingValues(start = margin, end = edge, bottom = gap)
         1 -> PaddingValues(start = middle, end = middle, bottom = gap)
         else -> PaddingValues(start = edge, end = margin, bottom = gap)
+    }
+}
+
+private fun previewBook(id: Long, title: String, status: BookStatus) = Book(
+    id = id,
+    title = title,
+    author = "Author",
+    isbn = null,
+    coverUri = null,
+    genre = null,
+    pageCount = null,
+    publishedYear = null,
+    status = status,
+    rating = null,
+    synopsis = null,
+    createdAt = Instant.EPOCH,
+)
+
+private val previewLoan = OpenLoan(loanId = 1, borrowerName = "Priya", loanedAt = Instant.EPOCH, dueAt = LocalDate.now())
+
+// Plan section 5: all four dot kinds (reading, finished, want-to-read, lent) in one preview.
+@Preview(name = "LibraryGridSection — all dot kinds")
+@Composable
+private fun LibraryGridSectionAllDotKindsPreview() {
+    BookshelfTheme {
+        Surface {
+            Column {
+                LibraryFilterChips(
+                    selected = LibraryFilter.All,
+                    counts = LibraryCounts(all = 4, reading = 1, finished = 2, wantToRead = 1, lentOut = 1),
+                    onFilterSelected = {},
+                )
+                LibraryGridTitle()
+                Row {
+                    LibraryGridCard(
+                        libraryBook = LibraryBook(previewBook(1, "The Hidden Life of Trees", BookStatus.Reading), null),
+                        column = 0,
+                        onBookClick = {},
+                    )
+                    LibraryGridCard(
+                        libraryBook = LibraryBook(previewBook(2, "Braiding Sweetgrass", BookStatus.Finished), null),
+                        column = 1,
+                        onBookClick = {},
+                    )
+                    LibraryGridCard(
+                        libraryBook = LibraryBook(previewBook(3, "Pachinko", BookStatus.WantToRead), null),
+                        column = 2,
+                        onBookClick = {},
+                    )
+                }
+                Row {
+                    LibraryGridCard(
+                        libraryBook = LibraryBook(previewBook(4, "Sapiens", BookStatus.Finished), previewLoan),
+                        column = 0,
+                        onBookClick = {},
+                    )
+                }
+            }
+        }
+    }
+}
+
+// Plan section 5: 2x font scale at a 320dp width - chips stay single-line/scrollable, the grid
+// title and card title wrap without clipping.
+@Preview(name = "LibraryGridSection — 2x font scale, 320dp", fontScale = 2f, widthDp = 320)
+@Composable
+private fun LibraryGridSectionDoubleFontScalePreview() {
+    BookshelfTheme {
+        Surface {
+            Column {
+                LibraryFilterChips(
+                    selected = LibraryFilter.Finished,
+                    counts = LibraryCounts(all = 27, reading = 2, finished = 19, wantToRead = 6, lentOut = 3),
+                    onFilterSelected = {},
+                )
+                LibraryGridTitle()
+                LibraryGridCard(
+                    libraryBook = LibraryBook(previewBook(1, "Braiding Sweetgrass", BookStatus.Finished), previewLoan),
+                    column = 0,
+                    onBookClick = {},
+                )
+            }
+        }
+    }
+}
+
+// Plan section 5: the "Lent out" filter selected.
+@Preview(name = "LibraryGridSection — Lent out selected")
+@Composable
+private fun LibraryGridSectionLentOutSelectedPreview() {
+    BookshelfTheme {
+        Surface {
+            Column {
+                LibraryFilterChips(
+                    selected = LibraryFilter.LentOut,
+                    counts = LibraryCounts(all = 27, reading = 2, finished = 19, wantToRead = 6, lentOut = 3),
+                    onFilterSelected = {},
+                )
+                LibraryGridTitle()
+                LibraryGridCard(
+                    libraryBook = LibraryBook(previewBook(1, "Sapiens", BookStatus.Finished), previewLoan),
+                    column = 0,
+                    onBookClick = {},
+                )
+                Spacer(modifier = Modifier.height(1.dp))
+            }
+        }
     }
 }
