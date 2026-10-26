@@ -1,6 +1,5 @@
 package com.minicore.bookshelf.features.library.ui
 
-import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.SemanticsMatcher
@@ -13,8 +12,8 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
-import androidx.compose.ui.test.performSemanticsAction
 import com.minicore.bookshelf.HiltTestActivity
+import com.minicore.bookshelf.performSemanticsClick
 import com.minicore.bookshelf.core.designsystem.BookshelfTheme
 import com.minicore.bookshelf.core.model.Book
 import com.minicore.bookshelf.core.model.BookStatus
@@ -96,18 +95,13 @@ class LibraryGridFilteringTest {
     // need to scroll their target into view - Compose's lazy layouts only compose (and
     // hit-test) nodes near the viewport.
     //
-    // performClick() simulates a real touch at the chip's own screen centre, not a direct
-    // semantics-action call - with both #20's rows seeded, the chip row's minimal "scroll into
-    // view" position can coincide with the "Add a book" FAB's fixed bottom-end corner
-    // (BOOKSHELF-0022), so a simulated touch there would hit the FAB instead of the chip
-    // underneath it. performSemanticsAction(OnClick) invokes the chip's own click handler
-    // directly - still the exact same production code path (LibraryFilterChip's onClick ->
-    // onFilterSelected), just not routed through coordinate-based touch dispatch that an
-    // unrelated, later-added overlay can intercept.
+    // With both #20's rows seeded, the chip row's minimal "scroll into view" position can
+    // coincide with the "Add a book" FAB's fixed bottom-end corner (BOOKSHELF-0022) - see
+    // ComposeTestActions.performSemanticsClick's KDoc.
     private fun tapChip(filter: LibraryFilter) {
         composeRule.onNodeWithTag(libraryFilterChipTag(filter))
             .performScrollTo()
-            .performSemanticsAction(SemanticsActions.OnClick)
+            .performSemanticsClick()
     }
 
     private val gridCardTagPrefixMatcher = SemanticsMatcher("TestTag starts with 'library_grid_card_'") { node ->

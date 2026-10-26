@@ -10,6 +10,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.minicore.bookshelf.HiltTestActivity
 import com.minicore.bookshelf.core.designsystem.BookshelfTheme
+import com.minicore.bookshelf.performSemanticsClick
 import com.minicore.bookshelf.core.model.Book
 import com.minicore.bookshelf.core.model.BookStatus
 import com.minicore.bookshelf.di.LibraryDataModule
@@ -179,17 +180,22 @@ class BookshelfNavGraphTest {
 
         val backStackSizeBefore = navController.currentBackStack.value.size
 
-        composeRule.onNodeWithTag(libraryGridCardTag(readingBook.id)).performScrollTo().performClick()
+        // performScrollTo()'s minimal "scroll into view" can land a target right at the
+        // viewport's bottom-end corner, which the always-on "Add a book" FAB also occupies
+        // (BOOKSHELF-0022) - performSemanticsClick() invokes the same onClick handler without
+        // depending on coordinate-based touch dispatch an unrelated overlay can intercept (see
+        // ComposeTestActions.performSemanticsClick's KDoc).
+        composeRule.onNodeWithTag(libraryGridCardTag(readingBook.id)).performScrollTo().performSemanticsClick()
         composeRule.waitForIdle()
         assertEquals(BookshelfDestinations.Home.route, navController.currentDestination?.route)
         assertEquals(backStackSizeBefore, navController.currentBackStack.value.size)
 
-        composeRule.onNodeWithTag(libraryFilterChipTag(LibraryFilter.Finished)).performScrollTo().performClick()
+        composeRule.onNodeWithTag(libraryFilterChipTag(LibraryFilter.Finished)).performScrollTo().performSemanticsClick()
         composeRule.waitForIdle()
         assertEquals(BookshelfDestinations.Home.route, navController.currentDestination?.route)
         assertEquals(backStackSizeBefore, navController.currentBackStack.value.size)
 
-        composeRule.onNodeWithTag(libraryGridCardTag(finishedBook.id)).performScrollTo().performClick()
+        composeRule.onNodeWithTag(libraryGridCardTag(finishedBook.id)).performScrollTo().performSemanticsClick()
         composeRule.waitForIdle()
         assertEquals(BookshelfDestinations.Home.route, navController.currentDestination?.route)
         assertEquals(backStackSizeBefore, navController.currentBackStack.value.size)
