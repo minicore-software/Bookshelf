@@ -24,6 +24,8 @@ import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.then
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
+import androidx.test.platform.app.InstrumentationRegistry
+import com.minicore.bookshelf.R
 import com.minicore.bookshelf.core.designsystem.BookshelfTheme
 import com.minicore.bookshelf.core.model.Book
 import com.minicore.bookshelf.core.model.BookStatus
@@ -34,6 +36,7 @@ import com.minicore.bookshelf.features.library.domain.model.LibraryBook
 import com.minicore.bookshelf.features.library.domain.model.LibraryCounts
 import java.time.Instant
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -45,6 +48,20 @@ class LibraryEmptyStateTest {
 
     @get:Rule
     val composeRule = createComposeRule()
+
+    // Read from R.string, not hardcoded, so a copy change doesn't silently break this test's
+    // intent (same pattern as LibraryScreenTest's title/tagline/placeholder).
+    private val emptyTitle: String
+        get() = InstrumentationRegistry.getInstrumentation().targetContext
+            .getString(R.string.library_empty_title)
+
+    private val emptyBody: String
+        get() = InstrumentationRegistry.getInstrumentation().targetContext
+            .getString(R.string.library_empty_body)
+
+    private val addBookLabel: String
+        get() = InstrumentationRegistry.getInstrumentation().targetContext
+            .getString(R.string.library_add_book)
 
     private fun book(id: Long, title: String = "Book $id", status: BookStatus = BookStatus.Reading) = Book(
         id = id,
@@ -79,8 +96,8 @@ class LibraryEmptyStateTest {
         composeRule.onNodeWithText("Lent out").assertDoesNotExist()
 
         composeRule.onNodeWithTag(LIBRARY_EMPTY_STATE_TEST_TAG).assertIsDisplayed()
-        composeRule.onNodeWithText("An empty shelf").assertIsDisplayed()
-        composeRule.onNodeWithText("Books you add will appear here.").assertIsDisplayed()
+        composeRule.onNodeWithText(emptyTitle).assertIsDisplayed()
+        composeRule.onNodeWithText(emptyBody).assertIsDisplayed()
         composeRule.onNodeWithTag(LIBRARY_GRID_TITLE_TEST_TAG).assertDoesNotExist()
         composeRule.onNodeWithText("Your library").assertDoesNotExist()
     }
@@ -96,7 +113,7 @@ class LibraryEmptyStateTest {
             }
         }
 
-        composeRule.onNodeWithText("An empty shelf")
+        composeRule.onNodeWithText(emptyTitle)
             .assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.Heading))
     }
 
@@ -167,7 +184,7 @@ class LibraryEmptyStateTest {
 
         composeRule.onNodeWithTag(LIBRARY_ADD_BOOK_FAB_TEST_TAG)
             .assertIsDisplayed()
-            .assert(hasContentDescription("Add a book"))
+            .assert(hasContentDescription(addBookLabel))
             .assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Button))
             .assertHeightIsAtLeast(48.dp)
             .assertWidthIsAtLeast(48.dp)
@@ -238,20 +255,25 @@ class LibraryEmptyStateTest {
     }
 
     // FF4: with a populated library, after scrolling to the bottom of the grid, the last card's
-    // bottom edge never overlaps the FAB's top edge.
+    // bottom edge never overlaps the FAB's top edge. Forces a real scroll via a constrained
+    // viewport height (the same DeviceConfigurationOverride pattern as the 2x-font test below) -
+    // 30 books in a 3-column grid is otherwise tall enough to need scrolling on most phones, but
+    // a tall device/tablet could fit them all without scrolling and pass this vacuously.
     @Test
     fun populatedLibrary_scrolledToBottom_lastCardNeverOverlapsFab() {
-        val books = (1..12L).map { LibraryBook(book(it, status = BookStatus.Reading), null) }
-        val counts = LibraryCounts(all = 12, reading = 12, finished = 0, wantToRead = 0, lentOut = 0)
+        val books = (1..30L).map { LibraryBook(book(it, status = BookStatus.Reading), null) }
+        val counts = LibraryCounts(all = 30, reading = 30, finished = 0, wantToRead = 0, lentOut = 0)
         composeRule.setContent {
-            BookshelfTheme {
-                Surface {
-                    LibraryScreen(
-                        uiState = LibraryUiState.Content(
-                            LibraryRows(emptyList(), emptyList()),
-                            LibraryGrid(LibraryFilter.All, counts, books),
-                        ),
-                    )
+            DeviceConfigurationOverride(DeviceConfigurationOverride.ForcedSize(DpSize(360.dp, 640.dp))) {
+                BookshelfTheme {
+                    Surface {
+                        LibraryScreen(
+                            uiState = LibraryUiState.Content(
+                                LibraryRows(emptyList(), emptyList()),
+                                LibraryGrid(LibraryFilter.All, counts, books),
+                            ),
+                        )
+                    }
                 }
             }
         }
@@ -260,10 +282,10 @@ class LibraryEmptyStateTest {
             .performScrollToNode(hasTestTag(LIBRARY_GRID_BOTTOM_TEST_TAG))
         composeRule.waitForIdle()
 
-        val lastCardBottom = composeRule.onNodeWithTag(libraryGridCardTag(12)).fetchSemanticsNode().boundsInRoot.bottom
+        val lastCardBottom = composeRule.onNodeWithTag(libraryGridCardTag(30)).fetchSemanticsNode().boundsInRoot.bottom
         val fabTop = composeRule.onNodeWithTag(LIBRARY_ADD_BOOK_FAB_TEST_TAG).fetchSemanticsNode().boundsInRoot.top
 
-        assertEquals(true, lastCardBottom <= fabTop)
+        assertTrue("lastCardBottom=$lastCardBottom fabTop=$fabTop", lastCardBottom <= fabTop)
     }
 
     // At 2x font scale on a 320dp-wide, 640dp-tall viewport, the empty-state heading and body are
@@ -283,7 +305,7 @@ class LibraryEmptyStateTest {
             }
         }
 
-        composeRule.onNodeWithText("An empty shelf").performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithText("Books you add will appear here.").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText(emptyTitle).performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText(emptyBody).performScrollTo().assertIsDisplayed()
     }
 }
