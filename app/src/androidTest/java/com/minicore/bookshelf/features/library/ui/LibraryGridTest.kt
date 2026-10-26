@@ -6,12 +6,14 @@ import androidx.compose.ui.test.DeviceConfigurationOverride
 import androidx.compose.ui.test.FontScale
 import androidx.compose.ui.test.ForcedSize
 import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -121,6 +123,10 @@ class LibraryGridTest {
 
     // FF3: at 2x font scale on a 320dp-wide viewport, every chip label stays on one line and the
     // chip row remains scrollable (mirrors #19/#20's LibraryHeaderTest/LibraryRowsTest pattern).
+    // A chip's box is floored at the 48dp touch target (G11), so >= 48dp alone does not tell a
+    // single-line chip apart from one that has wrapped to two lines - a wrapped chip at this
+    // font scale and padding is comfortably above 60dp, so capping the height here as well pins
+    // "single line", not merely "not clipped to zero".
     @Test
     fun chips_atDoubleFontScaleAndNarrowWidth_remainSingleLineAndScrollable() {
         val counts = LibraryCounts(all = 27, reading = 2, finished = 19, wantToRead = 6, lentOut = 3)
@@ -153,6 +159,12 @@ class LibraryGridTest {
                 node.size.width > 0,
             )
             composeRule.onNodeWithTag(libraryFilterChipTag(filter)).assertHeightIsAtLeast(48.dp)
+            val heightDp = with(composeRule.density) { node.size.height.toDp() }
+            assertTrue(
+                "chip $filter must stay on one line (height $heightDp is too tall for a single " +
+                    "line at 2x font scale, so it likely wrapped)",
+                heightDp < 60.dp,
+            )
         }
     }
 
@@ -202,6 +214,41 @@ class LibraryGridTest {
                 and hasAnyAncestor(hasTestTag(libraryGridCardTag(2))),
             useUnmergedTree = true,
         ).assertExists()
+
+        // A lent card's merged semantics announce the dot's *status* ("Finished"), not "Lent" -
+        // the entire reason LibraryStatusDot takes a status param (G6). The dot sets no
+        // contentDescription itself; the card's own merged description carries it instead
+        // (LibraryGridCard/LibraryStatusDot KDoc).
+        composeRule.onNodeWithTag(libraryGridCardTag(1)).assert(hasContentDescription("Finished", substring = true))
+    }
+
+    // AC3 (component): the grid title is announced as a heading, so TalkBack lets users jump
+    // straight to "Your library".
+    @Test
+    fun gridTitle_isAHeading() {
+        val counts = LibraryCounts(all = 1, reading = 1, finished = 0, wantToRead = 0, lentOut = 0)
+        setContent(LibraryGrid(LibraryFilter.All, counts, listOf(LibraryBook(book(1), null))))
+
+        composeRule.onNodeWithTag(LIBRARY_GRID_TITLE_TEST_TAG)
+            .assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.Heading))
+    }
+
+    // AC3 (component): the grid is a fixed 3-column layout (plan G10) - cards 0-2 share a top
+    // row and card 3 starts the next row below them.
+    @Test
+    fun grid_laysOutCardsInThreeColumns() {
+        val books = (1..4L).map { LibraryBook(book(it, status = BookStatus.Reading), null) }
+        val counts = LibraryCounts(all = 4, reading = 4, finished = 0, wantToRead = 0, lentOut = 0)
+        setContent(LibraryGrid(LibraryFilter.Reading, counts, books))
+
+        val top0 = composeRule.onNodeWithTag(libraryGridCardTag(1)).fetchSemanticsNode().boundsInRoot.top
+        val top1 = composeRule.onNodeWithTag(libraryGridCardTag(2)).fetchSemanticsNode().boundsInRoot.top
+        val top2 = composeRule.onNodeWithTag(libraryGridCardTag(3)).fetchSemanticsNode().boundsInRoot.top
+        val top3 = composeRule.onNodeWithTag(libraryGridCardTag(4)).fetchSemanticsNode().boundsInRoot.top
+
+        assertEquals(top0, top1, 0.01f)
+        assertEquals(top1, top2, 0.01f)
+        assertTrue("card 3 (index 3) must start a new row below the first 3", top3 > top2)
     }
 
     // AC4 (component): tapping grid cards is a no-op that records clicks without crashing; the

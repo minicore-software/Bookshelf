@@ -12,7 +12,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.SemanticsPropertyKey
 import androidx.compose.ui.semantics.SemanticsPropertyReceiver
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.minicore.bookshelf.R
@@ -47,8 +46,13 @@ var SemanticsPropertyReceiver.libraryStatusDotKind by LibraryStatusDotKindKey
 private val DotOuterSize = 13.dp
 private val DotRingThickness = 2.dp
 
+/**
+ * The status label used both for [LibraryStatusDot]'s test-only semantics and for the grid
+ * card's own merged `contentDescription` ([LibraryGridCard]), which is where TalkBack actually
+ * reads it from (see [LibraryStatusDot]'s KDoc).
+ */
 @Composable
-private fun BookStatus.label(): String = when (this) {
+internal fun BookStatus.label(): String = when (this) {
     BookStatus.Reading -> stringResource(R.string.library_status_reading)
     BookStatus.Finished -> stringResource(R.string.library_status_finished)
     BookStatus.WantToRead -> stringResource(R.string.library_status_want_to_read)
@@ -56,9 +60,15 @@ private fun BookStatus.label(): String = when (this) {
 
 /**
  * The 13dp status/lent dot (plan G6/G12): a status dot is a coloured fill inside a paper ring;
- * the lent overlay inverts that - a paper (hollow) fill inside a terracotta ring. The
- * `contentDescription` is always [status]'s label, even when [kind] is [StatusDotKind.Lent]
- * (plan G6) - lent-ness is carried by the "Lent to X" caption text, never by colour alone.
+ * the lent overlay inverts that - a paper (hollow) fill inside a terracotta ring. [status] is
+ * kept as a parameter (an accepted deviation from plan G12's `kind`-only signature) but the dot
+ * no longer sets its own `contentDescription`: a `clickable` card merges its descendants in
+ * composition order, so a description on the dot - composed before the title - would make
+ * TalkBack read "Finished, Sapiens, Lent to Priya" instead of "Sapiens, Finished, Lent to
+ * Priya". [LibraryGridCard] instead sets one `contentDescription` on the card itself, built as
+ * "title, status label[, Lent to X]", so the order matches the plan's section 8 example and the
+ * dot's text is never duplicated/suppressed inside the merge. The kind is still exposed through
+ * [libraryStatusDotKind] so component tests can assert it without reading pixels.
  */
 @Composable
 fun LibraryStatusDot(kind: StatusDotKind, status: BookStatus, modifier: Modifier = Modifier) {
@@ -70,17 +80,13 @@ fun LibraryStatusDot(kind: StatusDotKind, status: BookStatus, modifier: Modifier
         StatusDotKind.WantToRead -> extended.statusWantToRead to paper
         StatusDotKind.Lent -> paper to extended.lentAccent
     }
-    val statusLabel = status.label()
 
     Box(
         modifier = modifier
             .size(DotOuterSize)
             .clip(CircleShape)
             .background(ring)
-            .semantics {
-                contentDescription = statusLabel
-                libraryStatusDotKind = kind
-            }
+            .semantics { libraryStatusDotKind = kind }
             .padding(DotRingThickness)
             .clip(CircleShape)
             .background(fill),

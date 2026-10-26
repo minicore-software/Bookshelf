@@ -28,6 +28,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -175,11 +176,19 @@ fun LibraryGridCard(
     val book = libraryBook.book
     val clickLabel = stringResource(R.string.library_book_click_label)
     val kind = libraryBook.statusDotKind()
+    val openLoan = libraryBook.openLoan
+    val statusLabel = book.status.label()
+    val lentToText = openLoan?.let { stringResource(R.string.library_grid_lent_to, it.borrowerName) }
+    // The merged card description, built in the order TalkBack should read (plan section 8:
+    // "Sapiens, Finished, Lent to Priya"). The dot itself sets no contentDescription - see
+    // LibraryStatusDot's KDoc - so this is the only place the status/lent text is announced.
+    val cardDescription = listOfNotNull(book.title, statusLabel, lentToText).joinToString(", ")
 
     Column(
         modifier = modifier
             .padding(gridCellPadding(column))
             .clickable(onClickLabel = clickLabel, role = Role.Button) { onBookClick(book.id) }
+            .semantics(mergeDescendants = true) { contentDescription = cardDescription }
             .testTag(libraryGridCardTag(book.id)),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
@@ -206,10 +215,9 @@ fun LibraryGridCard(
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
-        val openLoan = libraryBook.openLoan
-        if (openLoan != null) {
+        if (openLoan != null && lentToText != null) {
             Text(
-                text = stringResource(R.string.library_grid_lent_to, openLoan.borrowerName),
+                text = lentToText,
                 style = LibraryTextStyles.gridLentCaption,
                 color = BookshelfTheme.extendedColors.lentCaption,
                 maxLines = 1,
