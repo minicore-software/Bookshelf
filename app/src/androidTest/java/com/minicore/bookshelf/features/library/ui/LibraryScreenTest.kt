@@ -45,6 +45,14 @@ class LibraryScreenTest {
         get() = InstrumentationRegistry.getInstrumentation().targetContext
             .getString(R.string.library_search_placeholder)
 
+    private val emptyTitle: String
+        get() = InstrumentationRegistry.getInstrumentation().targetContext
+            .getString(R.string.library_empty_title)
+
+    private val emptyBody: String
+        get() = InstrumentationRegistry.getInstrumentation().targetContext
+            .getString(R.string.library_empty_body)
+
     // F1/AC1: the avatar and greeting are gone — no node has "MT", "Good evening" or
     // "Marco's Shelf" — and the brand-mark tile is displayed in their place.
     @Test
@@ -61,7 +69,9 @@ class LibraryScreenTest {
         composeRule.onNodeWithTag(LIBRARY_BRAND_MARK_TEST_TAG).assertIsDisplayed()
     }
 
-    // F2/AC1/AC3: exactly the three expected strings are present on screen, nothing else.
+    // F2/AC1/AC3, updated for BOOKSHELF-0022 AC2: exactly the five expected strings are present
+    // on screen for a 0-book library - the header's three plus the empty-state heading and body -
+    // nothing else (no chips, no "Your library", no cards).
     @Test
     fun libraryScreen_showsExactlyTheExpectedText() {
         composeRule.setContent {
@@ -73,8 +83,10 @@ class LibraryScreenTest {
         composeRule.onNodeWithText(title).assertIsDisplayed()
         composeRule.onNodeWithText(tagline).assertIsDisplayed()
         composeRule.onNodeWithText(placeholder).assertIsDisplayed()
+        composeRule.onNodeWithText(emptyTitle).assertIsDisplayed()
+        composeRule.onNodeWithText(emptyBody).assertIsDisplayed()
         composeRule.onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsProperties.Text))
-            .assertCountEquals(3)
+            .assertCountEquals(5)
     }
 
     // F12/FF5: at 2x font scale on a 320dp-wide viewport, the title is unclipped and on one

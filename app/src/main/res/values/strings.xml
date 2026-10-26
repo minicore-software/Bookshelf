@@ -39,4 +39,9 @@
     <string name="library_status_reading">Reading</string>
     <string name="library_status_finished">Finished</string>
     <string name="library_status_want_to_read">Want to read</string>
+
+    <!-- Library empty state and FAB (BOOKSHELF-0022) -->
+    <string name="library_empty_title">An empty shelf</string>
+    <string name="library_empty_body">Books you add will appear here.</string>
+    <string name="library_add_book">Add a book</string>
 </resources>
