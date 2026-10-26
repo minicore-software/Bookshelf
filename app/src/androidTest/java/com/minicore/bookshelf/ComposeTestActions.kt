@@ -14,6 +14,16 @@ import androidx.compose.ui.test.performSemanticsAction
  * same production click handler, just without depending on coordinate-based touch dispatch that
  * an unrelated overlay can intercept. Keep `performClick()` where a test's point is real
  * hit-testing (e.g. clicking the FAB itself).
+ *
+ * This overlap is only ever temporary - `LibraryScreen`'s `FabClearance` bottom content padding
+ * means the FAB is clear of the content again once scrolled all the way to the end. Using this
+ * helper to reach a node under the FAB therefore does **not** prove the FAB never permanently
+ * occludes that node; it only sidesteps the overlap so the click still reaches its target. A
+ * real hit-testing/occlusion regression (the FAB permanently covering content, e.g. missing or
+ * wrong `FabClearance`) is instead guarded by an FF4-style bounds assertion - compare
+ * `LibraryEmptyStateTest.populatedLibrary_scrolledToBottom_lastCardNeverOverlapsFab`, which
+ * asserts the scrolled-to node's `boundsInRoot.bottom <= fab.boundsInRoot.top`. Don't reuse this
+ * helper as a substitute for that assertion.
  */
 internal fun SemanticsNodeInteraction.performSemanticsClick(): SemanticsNodeInteraction =
     performSemanticsAction(SemanticsActions.OnClick)
