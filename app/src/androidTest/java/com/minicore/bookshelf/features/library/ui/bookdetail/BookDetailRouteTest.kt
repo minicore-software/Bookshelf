@@ -1,11 +1,15 @@
 package com.minicore.bookshelf.features.library.ui.bookdetail
 
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTouchInput
 import androidx.lifecycle.SavedStateHandle
 import com.minicore.bookshelf.core.designsystem.BookshelfTheme
 import com.minicore.bookshelf.core.model.Book
@@ -130,11 +134,14 @@ class BookDetailRouteTest {
         setContent()
 
         composeRule.onNodeWithText("Flora Thompson · 1939").assertIsDisplayed()
-        composeRule.onNodeWithTag(BOOK_DETAIL_COMMENT_TEST_TAG).assertIsDisplayed()
-        composeRule.onNodeWithText("“Slow, but rewards patience.”").assertIsDisplayed()
-        composeRule.onNodeWithText("A gift").assertIsDisplayed()
-        composeRule.onNodeWithText("Lisbon").assertIsDisplayed()
-        composeRule.onNodeWithText("Cosy").assertIsDisplayed()
+        // The body is a verticalScroll column capped at 92% of the available height - on a
+        // shorter device these nodes can sit below the fold, so scroll each into view before
+        // asserting (top suggestion, review round 1).
+        composeRule.onNodeWithTag(BOOK_DETAIL_COMMENT_TEST_TAG).performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("“Slow, but rewards patience.”").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("A gift").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Lisbon").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Cosy").performScrollTo().assertIsDisplayed()
         val ratingNode = composeRule.onNodeWithTag(BOOK_DETAIL_RATING_TEST_TAG).fetchSemanticsNode()
         assertEquals("Rated 4 of 5", ratingNode.config[SemanticsProperties.StateDescription])
     }
@@ -226,13 +233,19 @@ class BookDetailRouteTest {
         assertEquals(true, closed)
     }
 
+    // The scrim and the bottom-aligned sheet are siblings covering the whole composable; the
+    // sheet is capped at 92% of height-minus-statusbar, so its *default* center-click lands on
+    // the Surface (which blocks pass-through), not the scrim. Click in the top band - always
+    // scrim, never the sheet - instead (critical finding, review round 1).
     @Test
     fun scrimTap_invokesOnClose() {
         repository.byId.value = LibraryBook(minimalBook(), null)
         var closed = false
         setContent(onClose = { closed = true })
 
-        composeRule.onNodeWithTag(BOOK_DETAIL_SCRIM_TEST_TAG).performClick()
+        composeRule.onNodeWithTag(BOOK_DETAIL_SCRIM_TEST_TAG).performTouchInput {
+            click(Offset(centerX, height * 0.03f))
+        }
 
         assertEquals(true, closed)
     }
