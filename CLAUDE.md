@@ -49,9 +49,14 @@ app/src/main/java/com/minicore/bookshelf/
  ├── navigation/            # BookshelfDestinations (routes), BookshelfNavGraph (NavHost)
  ├── features/
  │    ├── library/
- │    │    ├── ui/         # Compose screens + ViewModels (shelf, book detail, add book)
+ │    │    ├── ui/
+ │    │    │    ├── addbook/   # AddBookRoute/AddBookViewModel/AddBookUiState (the manual "add
+ │    │    │    │              # a book" sheet, BOOKSHELF-0031)
+ │    │    │    └── bookform/  # Stateless BookForm + its field composables (StarRatingInput,
+ │    │    │                   # YearStepperField, CoverPicker) - never imports addbook/, so a
+ │    │    │                   # future Edit screen can reuse it
  │    │    ├── domain/     # LibraryRepository contract, read models (LibraryBook, LentBook,
- │    │    │               # LibraryCounts, OpenLoan), use cases
+ │    │    │               # LibraryCounts, OpenLoan), use cases (incl. AddBookUseCase), BookDraft
  │    │    └── data/       # RoomLibraryRepository (entity <-> domain mapping)
  │    ├── lending/
  │    │    ├── ui/         # Lend-a-book sheet, My Loans screen
@@ -74,6 +79,10 @@ app/src/main/java/com/minicore/bookshelf/
  │    │    └── dao/         # BookDao, LoanDao, LibraryBookRow/StatusCountRow projections
  │    ├── designsystem/    # BookshelfTheme, palette, typography (Fraunces/paper/ink/forest)
  │    │    └── component/  # Shared composables used across features (e.g. BookCover)
+ │    ├── coverimage/      # CoverImageStore/FileCoverImageStore (app-private cover-image files,
+ │    │                    # ADR-003), CoverImageLoader/FileCoverImageLoader + LocalCoverImageLoader
+ │    │                    # (BookCover's/CoverPicker's image-drawing seam, bound in MainActivity -
+ │    │                    # see BOOKSHELF-0031)
  │    ├── scanner/         # ISBN barcode scanner (ML Kit)
  │    └── lookup/          # Book metadata lookup (title/author/ISBN search, future)
  └── di/                   # Hilt modules
@@ -97,6 +106,8 @@ Four core entities, feature-first and normalized by ID (never by title — title
 | `Shelf` / `Tag` | id, name — user-defined groupings (future; not required for v1) |
 
 **Book identity is ID-based, not name-based** — titles can change, and this matters once barcode lookup and loan history exist.
+
+**`Cover.Image.uri`/the `cover_uri` column hold an app-private relative reference** (`covers/<uuid>.jpg` under `filesDir`), never the original picker URI — a downscaled, EXIF-stripped JPEG copy owned by `core/coverimage/CoverImageStore` (ADR-003, BOOKSHELF-0031), not a `content://` grant that can be revoked or a remote URL.
 
 Relationships: `Book` → many `ReadingLogEntry` (progress-over-time); `Book` → many `Loan` (loan history; at most one open loan — `returnedAt == null` — per book at a time).
 

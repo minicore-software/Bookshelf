@@ -93,6 +93,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   empty-to-populated, and populated-to-empty via deletion), cold-start
   loading flash, FAB double-tap, and 2x font scale on a narrow/short
   screen. (#22)
+- Add a book manually: tapping the Library FAB now opens a bottom-anchored
+  sheet (`AddBookRoute`/`BookForm`, a Navigation `dialog` destination reached
+  only through `navigateToAddBook()`) with Title (required), Author, Year
+  (digits-only stepper field), a 1-5 star rating (unset is a distinct third
+  state from 1 star, tap-to-clear), a short comment, and a preset-colour
+  cover swatch picker. Saving always persists `status = want_to_read`
+  (`AddBookUseCase`, `core/coverimage/CoverImageStore`), with title/author
+  trimmed and a blank comment stored as `null`. Cancel, the close button,
+  system back and a scrim tap all discard the draft; a dirty draft asks
+  "Discard this book?" first. Saving is single-flight, so a double tap
+  cannot create two books. The cover can also be an uploaded photo: "Upload
+  an image..." launches the system Photo Picker, the picked image is
+  downscaled, EXIF-stripped and stored as an app-private JPEG
+  (`CoverImageStore`/`FileCoverImageStore`, ADR-003), and a set image shows
+  a live thumbnail with Replace/Remove actions - swatches stay tappable and
+  immediately replace an image with no confirmation. `BookCover` now draws
+  that stored image wherever a cover shows (library rows/grid), falling
+  back to the id-derived colour placeholder while loading or on failure.
+  Saving shows "Added to your shelf" as a Snackbar back on the Library.
+  (#31)
 
 ### Changed
 - **Internal, no end-user-visible change:** extended the `books` table (Room
