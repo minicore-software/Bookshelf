@@ -7,27 +7,29 @@ import org.junit.Test
 /** Plan #32 section 3/7 (F4/F6): the pure presentation rules, independent of Compose. */
 class BookDetailPresentationTest {
 
+    private val authorYearFormat = "%1\$s · %2\$d"
+
     @Test
     fun authorYearLine_authorAndYear_joinsWithMiddleDot() {
-        assertEquals("Flora Thompson · 1939", authorYearLine("Flora Thompson", 1939))
+        assertEquals("Flora Thompson · 1939", authorYearLine("Flora Thompson", 1939, authorYearFormat))
     }
 
     @Test
     fun authorYearLine_yearOnly_whenAuthorBlank() {
-        assertEquals("1939", authorYearLine("", 1939))
-        assertEquals("1939", authorYearLine(null, 1939))
-        assertEquals("1939", authorYearLine("   ", 1939))
+        assertEquals("1939", authorYearLine("", 1939, authorYearFormat))
+        assertEquals("1939", authorYearLine(null, 1939, authorYearFormat))
+        assertEquals("1939", authorYearLine("   ", 1939, authorYearFormat))
     }
 
     @Test
     fun authorYearLine_authorOnly_whenYearNull() {
-        assertEquals("Flora Thompson", authorYearLine("Flora Thompson", null))
+        assertEquals("Flora Thompson", authorYearLine("Flora Thompson", null, authorYearFormat))
     }
 
     @Test
     fun authorYearLine_null_whenBothMissing() {
-        assertNull(authorYearLine(null, null))
-        assertNull(authorYearLine("", null))
+        assertNull(authorYearLine(null, null, authorYearFormat))
+        assertNull(authorYearLine("", null, authorYearFormat))
     }
 
     // F6: status is derived only from loan presence, never Book.status - the function's own

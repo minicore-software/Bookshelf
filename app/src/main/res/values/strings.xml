@@ -90,13 +90,16 @@
     <string name="book_detail_title">Book</string>
     <string name="book_detail_close_icon">Close</string>
     <string name="book_detail_close">Close</string>
-    <string name="book_detail_edit">✎ Edit</string>
+    <string name="book_detail_edit_glyph">✎</string>
+    <string name="book_detail_edit">Edit</string>
     <string name="book_detail_status_on_shelf">On the shelf</string>
     <string name="book_detail_status_lent_out">Lent out</string>
     <string name="book_detail_rating_label">Rating</string>
     <string name="book_detail_rating_not_rated">Not rated</string>
     <string name="book_detail_rating_rated">Rated %d of 5</string>
+    <string name="book_detail_author_year">%1$s · %2$d</string>
     <string name="book_detail_comment_label">Comment</string>
+    <string name="book_detail_comment_quoted">“%1$s”</string>
     <string name="book_detail_availability_prompt">Lend it to a friend?</string>
     <string name="book_detail_lend_out">Lend out</string>
     <string name="book_detail_lent_to_label">Lent to</string>

@@ -6,11 +6,14 @@ package com.minicore.bookshelf.features.library.ui.bookdetail
  */
 
 /** Rule 3: `Author · 1939`; author blank -> year only; year null -> author only; both missing
- * -> `null` (the line is hidden). */
-fun authorYearLine(author: String?, year: Int?): String? {
+ * -> `null` (the line is hidden). [bothFormat] is `R.string.book_detail_author_year` ("%1$s ·
+ * %2$d") - kept string-parameterised, like [ratingAccessibilityLabel], so this stays
+ * plain-Kotlin testable without a Compose rule, and so the separator lives in `strings.xml`, not
+ * hardcoded here. */
+fun authorYearLine(author: String?, year: Int?, bothFormat: String): String? {
     val trimmedAuthor = author?.takeIf { it.isNotBlank() }
     return when {
-        trimmedAuthor != null && year != null -> "$trimmedAuthor · $year"
+        trimmedAuthor != null && year != null -> String.format(bothFormat, trimmedAuthor, year)
         trimmedAuthor != null -> trimmedAuthor
         year != null -> year.toString()
         else -> null
