@@ -4,9 +4,11 @@ import android.os.Bundle
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.SemanticsNodeInteractionCollection
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -16,6 +18,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTouchInput
 import androidx.navigation.compose.ComposeNavigator
 import androidx.navigation.testing.TestNavHostController
 import androidx.room.Room
@@ -315,12 +318,19 @@ class AddBookEndToEndTest {
         assertDismissedImmediately_noDialogEverShown()
     }
 
+    // The scrim and the bottom-aligned sheet are siblings covering the whole composable; the
+    // sheet is capped at 92% of height-minus-statusbar, so a default center-click lands on the
+    // Surface (which blocks pass-through), not the scrim. Click in the top band - always scrim,
+    // never the sheet - instead (same bug as BookDetailRouteTest/BookshelfNavGraphTest's scrim
+    // taps, critical finding review round 1).
     @Test
     fun cleanDraft_scrimTap_dismissesImmediately_noDialog() {
         setContent()
         openAddBookSheet()
 
-        composeRule.onNodeWithTag(ADD_BOOK_SCRIM_TEST_TAG).performClick()
+        composeRule.onNodeWithTag(ADD_BOOK_SCRIM_TEST_TAG).performTouchInput {
+            click(Offset(centerX, height * 0.03f))
+        }
 
         assertDismissedImmediately_noDialogEverShown()
     }
@@ -364,7 +374,9 @@ class AddBookEndToEndTest {
         openAddBookSheet()
         makeDraftDirty()
 
-        composeRule.onNodeWithTag(ADD_BOOK_SCRIM_TEST_TAG).performClick()
+        composeRule.onNodeWithTag(ADD_BOOK_SCRIM_TEST_TAG).performTouchInput {
+            click(Offset(centerX, height * 0.03f))
+        }
 
         assertDiscardDialogShown_sheetStillOpen()
     }
