@@ -58,6 +58,7 @@ import com.minicore.bookshelf.core.model.CoverPreset
 import com.minicore.bookshelf.features.library.ui.bookform.BookForm
 
 const val ADD_BOOK_SHEET_TEST_TAG = "add_book_sheet"
+const val ADD_BOOK_SCRIM_TEST_TAG = "add_book_scrim"
 const val ADD_BOOK_CLOSE_BUTTON_TEST_TAG = "add_book_close_button"
 const val ADD_BOOK_CANCEL_BUTTON_TEST_TAG = "add_book_cancel_button"
 const val ADD_BOOK_SAVE_BUTTON_TEST_TAG = "add_book_save_button"
@@ -157,13 +158,20 @@ private fun AddBookSheet(
         // The scrim is a sibling *behind* the Surface, not an ancestor - a `clickable` on an
         // ancestor can't be "swallowed" by a disabled clickable on the Surface in Compose
         // foundation, so taps anywhere on the sheet (title, labels, gaps) would otherwise also
-        // dismiss it. Hidden from the semantics tree since it carries no information of its own.
+        // dismiss it. Hidden from the semantics tree since it carries no information of its own -
+        // `clearAndSetSemantics {}` must come BEFORE (outside) `.clickable(...)` in the modifier
+        // chain: Compose's semantics walk is inner-to-outer, so a `clearAndSetSemantics` placed
+        // after `clickable` only clears what came before it and lets `clickable`'s own semantics
+        // (and `onClick` action) re-apply on top, leaving a full-screen unlabeled TalkBack stop
+        // that still dismisses the sheet (critical finding #3 round 2 regression; back/X/Cancel
+        // already give TalkBack users an exit).
         Box(
             modifier = Modifier
+                .testTag(ADD_BOOK_SCRIM_TEST_TAG)
                 .matchParentSize()
                 .background(Color.Black.copy(alpha = 0.4f))
-                .clickable(onClick = onScrimClick)
-                .clearAndSetSemantics {},
+                .clearAndSetSemantics {}
+                .clickable(onClick = onScrimClick),
         )
         Surface(
             modifier = Modifier

@@ -15,11 +15,14 @@ import com.minicore.bookshelf.features.library.ui.addbook.AddBookRoute
 /** A12: the result key `AddBookRoute` -> `LibraryRoute` hand off a successful save through, never
  * exposed outside `navigation/` (the Library side only sees a plain id, see
  * `LibraryRoute.bookAddedEventId`). Carries the new book's id - a fresh value every save - rather
- * than a `Boolean`, so `LibraryRoute`'s `LaunchedEffect` keyed on it is a one-shot per save: there
- * is no need to (and this must not) write a reset value back afterwards, since doing so
- * synchronously here previously changed the key under `LibraryRoute`'s `LaunchedEffect`, which
- * cancelled its in-flight `showSnackbar` call about a frame after it started (critical finding
- * #5). */
+ * than a `Boolean`, so `LibraryRoute`'s `LaunchedEffect` keyed on it is a one-shot per save: this
+ * must not be reset synchronously on write, since doing so previously changed the key under
+ * `LibraryRoute`'s `LaunchedEffect` mid-flight and cancelled its in-flight `showSnackbar` call
+ * about a frame after it started (critical finding #5). It must, however, be removed from the
+ * `SavedStateHandle` once `LibraryRoute` reports (via `onBookAddedSnackbarShown`) that the
+ * Snackbar has actually been shown - otherwise `getStateFlow` replays this same non-null value
+ * on every Activity recreation (rotation/config-change/process-death restore), reshowing the
+ * Snackbar indefinitely (critical finding round 2). */
 private const val KEY_BOOK_ADDED = "book_added"
 
 @Composable
@@ -40,6 +43,9 @@ fun BookshelfNavGraph(navController: NavHostController) {
                 onSeeAllLoansClick = {},
                 onAddBookClick = { navController.navigateToAddBook() },
                 bookAddedEventId = bookAddedId,
+                onBookAddedSnackbarShown = {
+                    backStackEntry.savedStateHandle.remove<Long>(KEY_BOOK_ADDED)
+                },
             )
         }
         dialog(
