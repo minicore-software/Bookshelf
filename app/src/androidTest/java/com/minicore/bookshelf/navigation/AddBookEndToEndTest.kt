@@ -8,6 +8,7 @@ import androidx.compose.ui.test.SemanticsNodeInteractionCollection
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
@@ -18,6 +19,7 @@ import androidx.compose.ui.test.performTextInput
 import androidx.navigation.compose.ComposeNavigator
 import androidx.navigation.testing.TestNavHostController
 import androidx.room.Room
+import androidx.test.espresso.Espresso.pressBack
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.minicore.bookshelf.HiltTestActivity
@@ -28,6 +30,9 @@ import com.minicore.bookshelf.core.database.dao.LoanDao
 import com.minicore.bookshelf.core.designsystem.BookshelfTheme
 import com.minicore.bookshelf.di.DatabaseModule
 import com.minicore.bookshelf.features.library.ui.LIBRARY_ADD_BOOK_FAB_TEST_TAG
+import com.minicore.bookshelf.features.library.ui.addbook.ADD_BOOK_CANCEL_BUTTON_TEST_TAG
+import com.minicore.bookshelf.features.library.ui.addbook.ADD_BOOK_CLOSE_BUTTON_TEST_TAG
+import com.minicore.bookshelf.features.library.ui.addbook.ADD_BOOK_DISCARD_DIALOG_TEST_TAG
 import com.minicore.bookshelf.features.library.ui.addbook.ADD_BOOK_SAVE_BUTTON_TEST_TAG
 import com.minicore.bookshelf.features.library.ui.addbook.ADD_BOOK_SCRIM_TEST_TAG
 import com.minicore.bookshelf.features.library.ui.addbook.ADD_BOOK_SHEET_TEST_TAG
@@ -40,6 +45,8 @@ import dagger.hilt.android.testing.HiltAndroidTest
 import dagger.hilt.android.testing.UninstallModules
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
@@ -249,6 +256,147 @@ class AddBookEndToEndTest {
             allNodesWithTag(ADD_BOOK_SHEET_TEST_TAG).fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
         }
         composeRule.onNodeWithText("Added to your shelf").assertIsDisplayed()
+    }
+
+    // UX spec section 2 / docs/ux/decisions.md:7: every exit path (Cancel, close, system back,
+    // scrim) must only prompt a discard-confirm dialog when the draft is dirty. A clean/untouched
+    // draft dismisses immediately, with no dialog ever appearing.
+
+    private fun openAddBookSheet() {
+        composeRule.onNodeWithTag(LIBRARY_ADD_BOOK_FAB_TEST_TAG).performClick()
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            allNodesWithTag(ADD_BOOK_SHEET_TEST_TAG).fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+        }
+    }
+
+    private fun makeDraftDirty() {
+        composeRule.onNodeWithTag(BOOK_FORM_TITLE_FIELD_TEST_TAG).performTextInput("Dune")
+    }
+
+    private fun assertDismissedImmediately_noDialogEverShown() {
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            allNodesWithTag(ADD_BOOK_SHEET_TEST_TAG).fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
+        }
+        composeRule.onNodeWithTag(ADD_BOOK_DISCARD_DIALOG_TEST_TAG).assertDoesNotExist()
+    }
+
+    private fun assertDiscardDialogShown_sheetStillOpen() {
+        composeRule.onNodeWithTag(ADD_BOOK_DISCARD_DIALOG_TEST_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(ADD_BOOK_SHEET_TEST_TAG).assertIsDisplayed()
+    }
+
+    @Test
+    fun cleanDraft_cancelButton_dismissesImmediately_noDialog() {
+        setContent()
+        openAddBookSheet()
+
+        composeRule.onNodeWithTag(ADD_BOOK_CANCEL_BUTTON_TEST_TAG).performClick()
+
+        assertDismissedImmediately_noDialogEverShown()
+    }
+
+    @Test
+    fun cleanDraft_closeButton_dismissesImmediately_noDialog() {
+        setContent()
+        openAddBookSheet()
+
+        composeRule.onNodeWithTag(ADD_BOOK_CLOSE_BUTTON_TEST_TAG).performClick()
+
+        assertDismissedImmediately_noDialogEverShown()
+    }
+
+    @Test
+    fun cleanDraft_systemBack_dismissesImmediately_noDialog() {
+        setContent()
+        openAddBookSheet()
+
+        pressBack()
+
+        assertDismissedImmediately_noDialogEverShown()
+    }
+
+    @Test
+    fun cleanDraft_scrimTap_dismissesImmediately_noDialog() {
+        setContent()
+        openAddBookSheet()
+
+        composeRule.onNodeWithTag(ADD_BOOK_SCRIM_TEST_TAG).performClick()
+
+        assertDismissedImmediately_noDialogEverShown()
+    }
+
+    @Test
+    fun dirtyDraft_cancelButton_showsDiscardDialog_insteadOfDismissing() {
+        setContent()
+        openAddBookSheet()
+        makeDraftDirty()
+
+        composeRule.onNodeWithTag(ADD_BOOK_CANCEL_BUTTON_TEST_TAG).performClick()
+
+        assertDiscardDialogShown_sheetStillOpen()
+    }
+
+    @Test
+    fun dirtyDraft_closeButton_showsDiscardDialog_insteadOfDismissing() {
+        setContent()
+        openAddBookSheet()
+        makeDraftDirty()
+
+        composeRule.onNodeWithTag(ADD_BOOK_CLOSE_BUTTON_TEST_TAG).performClick()
+
+        assertDiscardDialogShown_sheetStillOpen()
+    }
+
+    @Test
+    fun dirtyDraft_systemBack_showsDiscardDialog_insteadOfDismissing() {
+        setContent()
+        openAddBookSheet()
+        makeDraftDirty()
+
+        pressBack()
+
+        assertDiscardDialogShown_sheetStillOpen()
+    }
+
+    @Test
+    fun dirtyDraft_scrimTap_showsDiscardDialog_insteadOfDismissing() {
+        setContent()
+        openAddBookSheet()
+        makeDraftDirty()
+
+        composeRule.onNodeWithTag(ADD_BOOK_SCRIM_TEST_TAG).performClick()
+
+        assertDiscardDialogShown_sheetStillOpen()
+    }
+
+    @Test
+    fun discardDialog_keepEditing_closesDialog_keepsSheetAndFields() {
+        setContent()
+        openAddBookSheet()
+        makeDraftDirty()
+        composeRule.onNodeWithTag(ADD_BOOK_CANCEL_BUTTON_TEST_TAG).performClick()
+        assertDiscardDialogShown_sheetStillOpen()
+
+        composeRule.onNodeWithText("Keep editing").performClick()
+
+        composeRule.onNodeWithTag(ADD_BOOK_DISCARD_DIALOG_TEST_TAG).assertDoesNotExist()
+        composeRule.onNodeWithTag(ADD_BOOK_SHEET_TEST_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(BOOK_FORM_TITLE_FIELD_TEST_TAG).assert(hasText("Dune"))
+    }
+
+    @Test
+    fun discardDialog_discard_closesSheet_noBookInserted() {
+        setContent()
+        openAddBookSheet()
+        makeDraftDirty()
+        composeRule.onNodeWithTag(ADD_BOOK_CANCEL_BUTTON_TEST_TAG).performClick()
+        assertDiscardDialogShown_sheetStillOpen()
+
+        composeRule.onNodeWithText("Discard").performClick()
+
+        assertDismissedImmediately_noDialogEverShown()
+        val books = runBlocking { database.bookDao().observeLibraryBooks(null).first() }
+        assert(books.isEmpty()) { "expected no book to be inserted after discarding, found $books" }
     }
 
     private object TestDatabaseHolder {
