@@ -8,9 +8,12 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.dialog
+import androidx.navigation.navArgument
+import androidx.navigation.NavType
 import com.minicore.bookshelf.features.library.ui.LibraryRoute
 import com.minicore.bookshelf.features.library.ui.addbook.AddBookResult
 import com.minicore.bookshelf.features.library.ui.addbook.AddBookRoute
+import com.minicore.bookshelf.features.library.ui.bookdetail.BookDetailRoute
 
 /** A12: the result key `AddBookRoute` -> `LibraryRoute` hand off a successful save through, never
  * exposed outside `navigation/` (the Library side only sees a plain id, see
@@ -39,7 +42,7 @@ fun BookshelfNavGraph(navController: NavHostController) {
 
             LibraryRoute(
                 onSearchClick = {},
-                onBookClick = {},
+                onBookClick = { navController.navigateToBookDetail(it) },
                 onSeeAllLoansClick = {},
                 onAddBookClick = { navController.navigateToAddBook() },
                 bookAddedEventId = bookAddedId,
@@ -74,6 +77,22 @@ fun BookshelfNavGraph(navController: NavHostController) {
                     }
                     navController.popBackStack()
                 },
+            )
+        }
+        dialog(
+            route = BookshelfDestinations.BookDetail.route,
+            arguments = listOf(navArgument(BookshelfDestinations.BookDetail.ARG_BOOK_ID) { type = NavType.LongType }),
+            dialogProperties = DialogProperties(
+                usePlatformDefaultWidth = false,
+                decorFitsSystemWindows = false,
+                dismissOnBackPress = false,
+                dismissOnClickOutside = false,
+            ),
+        ) {
+            BookDetailRoute(
+                onClose = { navController.popBackStack() },
+                onEditClick = { bookId -> navController.navigateToEditBook(bookId) },
+                onLendClick = {},
             )
         }
     }
