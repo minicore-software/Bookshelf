@@ -93,3 +93,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   empty-to-populated, and populated-to-empty via deletion), cold-start
   loading flash, FAB double-tap, and 2x font scale on a narrow/short
   screen. (#22)
+
+### Changed
+- **Internal, no end-user-visible change:** extended the `books` table (Room
+  schema 1 → 2) with nullable `comment`, `memory_why`, `memory_where`,
+  `memory_what` and `cover_color` columns, migrated via a hand-written
+  `Migration(1, 2)` that backfills existing rows' `cover_color` to a
+  deterministic preset key so covers render identically to before the
+  upgrade. Two SQLite triggers (insert and update, registered on fresh
+  installs and inside the migration for upgraded ones) now enforce that a
+  book never has both a cover image and a cover colour at once. Introduces
+  a sealed `Cover` domain type (`Image`/`Preset`) replacing the old
+  `Book.coverUri` string, and extends `LibraryRepository` with
+  `observeBook`, `addBook` and `updateBook` for upcoming Book Management
+  screens (#31–#35) to build on. See
+  [ADR-002](docs/adr/ADR-002-Store-Book-Cover-As-Uri-Or-Preset-Key-With-Trigger-Enforced-Exclusivity.md).
+  (#30)
