@@ -172,10 +172,14 @@ class AddBookViewModel @Inject constructor(
         viewModelScope.launch { coverImages.discardDraft(previous.draftRef) }
     }
 
-    /** A8: single-flight. A no-op while saving, importing, or when the title is blank. */
+    /**
+     * A8: single-flight. A no-op while saving, importing, when the title is blank, or once
+     * [onDismissRequest] has already been requested in the same frame - otherwise a dismiss+Save
+     * race could still insert a book whose draft cover [onDismissRequest] just discarded.
+     */
     fun onSave() {
         val state = _uiState.value
-        if (!state.canSave) return
+        if (!state.canSave || hasRequestedDismiss) return
         update { it.copy(isSaving = true, error = null) }
         viewModelScope.launch {
             try {

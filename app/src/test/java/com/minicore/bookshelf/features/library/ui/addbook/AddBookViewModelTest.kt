@@ -247,6 +247,24 @@ class AddBookViewModelTest {
         dispatcher.scheduler.runCurrent()
     }
 
+    // Optional finding (round 2): onDismissRequest and onSave racing in the same frame - before
+    // either suspends - must not both go through. onDismissRequest discards the draft cover
+    // synchronously (its own coroutine launch happens before onSave's body runs in this
+    // single-threaded test dispatcher), so a save that still ran after it would insert a book
+    // referencing a cover that is about to be (or already was) discarded.
+    @Test
+    fun dismissThenSave_inTheSameFrame_doesNotInsert() = runTest(dispatcher) {
+        val vm = viewModel()
+        vm.onTitleChange("Dune")
+
+        vm.onDismissRequest()
+        vm.onSave()
+        dispatcher.scheduler.runCurrent()
+
+        assertEquals(0, repository.insertCount)
+        assertFalse(vm.uiState.value.isSaving)
+    }
+
     // Save failure: fields are kept and the button re-enables.
     @Test
     fun saveFailure_keepsFields_reenablesSave() = runTest(dispatcher) {
