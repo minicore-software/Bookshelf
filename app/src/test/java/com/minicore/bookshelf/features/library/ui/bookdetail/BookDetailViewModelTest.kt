@@ -11,7 +11,6 @@ import com.minicore.bookshelf.features.library.domain.ObserveBookDetailUseCase
 import com.minicore.bookshelf.features.library.domain.model.LentBook
 import com.minicore.bookshelf.features.library.domain.model.LibraryBook
 import com.minicore.bookshelf.features.library.domain.model.LibraryCounts
-import com.minicore.bookshelf.navigation.BookshelfDestinations
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
@@ -81,7 +80,7 @@ class BookDetailViewModelTest {
 
     private fun viewModel(bookId: Long = 1L) = BookDetailViewModel(
         ObserveBookDetailUseCase(repository, CurrentDateProvider(Provider { clock })),
-        SavedStateHandle(mapOf(BookshelfDestinations.BookDetail.ARG_BOOK_ID to bookId)),
+        SavedStateHandle(mapOf("bookId" to bookId)),
     )
 
     @Test
