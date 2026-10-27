@@ -1,5 +1,6 @@
 package com.minicore.bookshelf.core.designsystem.component
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,15 +15,22 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.minicore.bookshelf.core.coverimage.LocalCoverImageLoader
 import com.minicore.bookshelf.core.designsystem.BookshelfTheme
 import com.minicore.bookshelf.core.designsystem.CoverColors
 import com.minicore.bookshelf.core.model.Cover
@@ -40,10 +48,11 @@ enum class BookCoverVariant { Row, Grid }
 
 /**
  * The shared cover placeholder used by the Library rows ([com.minicore.bookshelf.features])
- * and, from #21, the library grid (plan R1/G9). Always draws a colour-block placeholder -
- * [Cover.Image] is accepted but its `uri` is **ignored**: image loading is #31's decision
- * (BOOKSHELF-0030 plan S6), so both an image and a preset currently draw a colour block. Imports
- * nothing from `features` (`LayeringTest`).
+ * and, from #21, the library grid (plan R1/G9). A [Cover.Preset] always draws a colour-block
+ * placeholder. A [Cover.Image] draws the real decoded bitmap (plan #31 decision A11, via
+ * [LocalCoverImageLoader]) once it loads; until then - and if it fails to load, or no loader is
+ * provided (previews, `NoOpCoverImageLoader`) - it falls back to the same colour-block
+ * placeholder a preset would use. Imports nothing from `features` (`LayeringTest`).
  *
  * @param bookId used (not [title]) to pick the placeholder colour for a [Cover.Image] from a
  *   fixed six-colour palette via `Math.floorMod` (plan R2) - stable across renames, identical
@@ -73,41 +82,84 @@ fun BookCover(
     val colors = coverColorsFor(bookId, cover, palette)
 
     when (variant) {
-        BookCoverVariant.Row -> Surface(
-            modifier = modifier
-                .testTag(BOOK_COVER_TEST_TAG_PREFIX + bookId)
-                .size(RowCoverWidth, RowCoverHeight)
-                .alpha(if (dimmed) 0.55f else 1f)
-                .shadow(4.dp, RowCoverShape),
-            shape = RowCoverShape,
-            color = colors.background,
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(12.dp),
-                contentAlignment = Alignment.BottomStart,
+        BookCoverVariant.Row -> {
+            val bitmap = rememberCoverImageBitmap(cover, RowCoverWidth)
+            Surface(
+                modifier = modifier
+                    .testTag(BOOK_COVER_TEST_TAG_PREFIX + bookId)
+                    .size(RowCoverWidth, RowCoverHeight)
+                    .alpha(if (dimmed) 0.55f else 1f)
+                    .shadow(4.dp, RowCoverShape),
+                shape = RowCoverShape,
+                color = colors.background,
             ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleSmall,
-                    color = colors.content,
-                    maxLines = 4,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                Box(modifier = Modifier.fillMaxSize()) {
+                    if (bitmap != null) {
+                        Image(
+                            bitmap = bitmap,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(12.dp),
+                        contentAlignment = Alignment.BottomStart,
+                    ) {
+                        if (bitmap == null) {
+                            Text(
+                                text = title,
+                                style = MaterialTheme.typography.titleSmall,
+                                color = colors.content,
+                                maxLines = 4,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
+                }
             }
         }
 
-        BookCoverVariant.Grid -> Surface(
-            modifier = modifier
-                .testTag(BOOK_COVER_TEST_TAG_PREFIX + bookId)
-                .fillMaxWidth()
-                .aspectRatio(3f / 4.3f)
-                .shadow(2.dp, GridCoverShape),
-            shape = GridCoverShape,
-            color = colors.background,
-        ) {}
+        BookCoverVariant.Grid -> {
+            val bitmap = rememberCoverImageBitmap(cover, 132.dp)
+            Surface(
+                modifier = modifier
+                    .testTag(BOOK_COVER_TEST_TAG_PREFIX + bookId)
+                    .fillMaxWidth()
+                    .aspectRatio(3f / 4.3f)
+                    .shadow(2.dp, GridCoverShape),
+                shape = GridCoverShape,
+                color = colors.background,
+            ) {
+                if (bitmap != null) {
+                    Image(
+                        bitmap = bitmap,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+            }
+        }
     }
+}
+
+/**
+ * `null` whenever [cover] is a [Cover.Preset] (the colour placeholder is always right for a
+ * preset - never attempts a load), while still loading, on a decode failure, or when no
+ * [LocalCoverImageLoader] is provided (defaults to [com.minicore.bookshelf.core.coverimage.NoOpCoverImageLoader]).
+ */
+@Composable
+private fun rememberCoverImageBitmap(cover: Cover, targetWidth: Dp): ImageBitmap? {
+    if (cover !is Cover.Image) return null
+    val loader = LocalCoverImageLoader.current
+    val maxSizePx = with(LocalDensity.current) { targetWidth.roundToPx() }
+    val state = produceState<ImageBitmap?>(initialValue = null, cover.uri, loader) {
+        value = loader.load(cover.uri, maxSizePx)
+    }
+    return state.value
 }
 
 /**
