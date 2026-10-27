@@ -109,6 +109,23 @@ class AddBookEndToEndTest {
         composeRule.onNodeWithText("Added to your shelf").assertIsDisplayed()
     }
 
+    // Critical #3: the scrim's clickable sits on an ancestor Box behind the Surface, not on top
+    // of it - tapping any part of the sheet itself (here, its title) must never be mistaken for a
+    // tap on the scrim and dismiss the sheet.
+    @Test
+    fun tappingTheSheetTitle_doesNotDismissTheSheet() {
+        setContent()
+
+        composeRule.onNodeWithTag(LIBRARY_ADD_BOOK_FAB_TEST_TAG).performClick()
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            allNodesWithTag(ADD_BOOK_SHEET_TEST_TAG).fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+        }
+
+        composeRule.onNodeWithText("New book").performClick()
+
+        composeRule.onNodeWithTag(ADD_BOOK_SHEET_TEST_TAG).assertIsDisplayed()
+    }
+
     private object TestDatabaseHolder {
         lateinit var database: BookshelfDatabase
     }

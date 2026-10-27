@@ -8,6 +8,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
@@ -41,10 +42,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.paneTitle
@@ -141,27 +142,36 @@ private fun AddBookSheet(
 ) {
     val sheetTitle = stringResource(R.string.add_book_title)
     val closeDescription = stringResource(R.string.add_book_close)
-    // UX spec section 1: the 92% ceiling applies after subtracting the status bar inset, so the
-    // sheet never visually touches it (decorFitsSystemWindows = false means nothing does this
-    // for us automatically).
-    val statusBarInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-    val maxHeight = (LocalConfiguration.current.screenHeightDp.dp - statusBarInset) * 0.92f
     val enabled = !uiState.isSaving
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.4f))
-            .clickable(onClick = onScrimClick),
-    ) {
+    // BoxWithConstraints (not LocalConfiguration.screenHeightDp, which is the whole device
+    // screen) so the 92% ceiling tracks this composable's own available height - correct in
+    // multi-window/freeform, not just full-screen.
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        // UX spec section 1: the 92% ceiling applies after subtracting the status bar inset, so
+        // the sheet never visually touches it (decorFitsSystemWindows = false means nothing does
+        // this for us automatically).
+        val statusBarInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+        val maxHeight = (maxHeight - statusBarInset) * 0.92f
+
+        // The scrim is a sibling *behind* the Surface, not an ancestor - a `clickable` on an
+        // ancestor can't be "swallowed" by a disabled clickable on the Surface in Compose
+        // foundation, so taps anywhere on the sheet (title, labels, gaps) would otherwise also
+        // dismiss it. Hidden from the semantics tree since it carries no information of its own.
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .background(Color.Black.copy(alpha = 0.4f))
+                .clickable(onClick = onScrimClick)
+                .clearAndSetSemantics {},
+        )
         Surface(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .heightIn(max = maxHeight)
                 .testTag(ADD_BOOK_SHEET_TEST_TAG)
-                .semantics { paneTitle = sheetTitle }
-                .clickable(onClick = {}, enabled = false), // swallow taps so they don't reach the scrim
+                .semantics { paneTitle = sheetTitle },
             shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp),
             color = MaterialTheme.colorScheme.surface,
         ) {
@@ -283,7 +293,7 @@ private fun DiscardConfirmDialog(onKeepEditing: () -> Unit, onDiscard: () -> Uni
                 onClick = onDiscard,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.error,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    contentColor = MaterialTheme.colorScheme.onError,
                 ),
             ) {
                 Text(stringResource(R.string.add_book_discard_confirm))
