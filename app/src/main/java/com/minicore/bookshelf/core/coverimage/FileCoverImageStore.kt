@@ -5,7 +5,8 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.ImageDecoder
-import android.net.Uri
+import androidx.core.graphics.createBitmap
+import androidx.core.net.toUri
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import java.io.FileOutputStream
@@ -31,11 +32,38 @@ class FileCoverImageStore @Inject constructor(
 ) : CoverImageStore {
 
     override suspend fun importDraft(sourceUri: String): String = withContext(ioDispatcher) {
-        val bitmap = decodeDownscaled(sourceUri)
         val draftsDir = File(context.cacheDir, CoverRefs.DRAFTS_DIR).apply { mkdirs() }
         val fileName = "${UUID.randomUUID()}.jpg"
-        writeJpeg(bitmap, File(draftsDir, fileName))
+        val target = File(draftsDir, fileName)
+        try {
+            importInto(sourceUri, target)
+        } catch (e: CoverImportException) {
+            target.delete()
+            throw e
+        } catch (e: Exception) {
+            target.delete()
+            throw CoverImportException("could not import $sourceUri", e)
+        }
         "${CoverRefs.DRAFTS_DIR}/$fileName"
+    }
+
+    /**
+     * Decode -> flatten -> encode as one unit so any failure anywhere in the chain (including a
+     * [Canvas] rejecting a hardware bitmap, or [writeJpeg] failing) leaves no partial [target]
+     * file and is reported as a single [CoverImportException] to the caller.
+     */
+    private fun importInto(sourceUri: String, target: File) {
+        val decoded = decodeDownscaled(sourceUri)
+        val flattened = try {
+            flattenOntoOpaqueBackground(decoded)
+        } finally {
+            decoded.recycle()
+        }
+        try {
+            writeJpeg(flattened, target)
+        } finally {
+            flattened.recycle()
+        }
     }
 
     override suspend fun discardDraft(draftRef: String): Unit = withContext(ioDispatcher) {
@@ -54,6 +82,16 @@ class FileCoverImageStore @Inject constructor(
             draftFile.delete()
         }
         "${CoverRefs.COVERS_DIR}/$fileName"
+    }
+
+    override suspend fun uncommit(storedRef: String, draftRef: String): Unit = withContext(ioDispatcher) {
+        val storedFile = resolveStored(storedRef) ?: return@withContext
+        val draftRefFile = resolveDraft(draftRef) ?: return@withContext
+        draftRefFile.parentFile?.mkdirs()
+        if (!storedFile.renameTo(draftRefFile)) {
+            storedFile.copyTo(draftRefFile, overwrite = true)
+            storedFile.delete()
+        }
     }
 
     override suspend fun delete(storedRef: String): Unit = withContext(ioDispatcher) {
@@ -79,12 +117,15 @@ class FileCoverImageStore @Inject constructor(
 
     private fun decodeDownscaled(sourceUri: String): Bitmap {
         val source = try {
-            ImageDecoder.createSource(context.contentResolver, Uri.parse(sourceUri))
+            ImageDecoder.createSource(context.contentResolver, sourceUri.toUri())
         } catch (e: Exception) {
             throw CoverImportException("could not open $sourceUri", e)
         }
-        val decoded = try {
+        return try {
             ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
+                // Default allocation can return a hardware bitmap, which the plain software
+                // Canvas in flattenOntoOpaqueBackground() cannot draw onto (IllegalArgumentException).
+                decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
                 val width = info.size.width
                 val height = info.size.height
                 val longEdge = maxOf(width, height)
@@ -96,11 +137,10 @@ class FileCoverImageStore @Inject constructor(
         } catch (e: Exception) {
             throw CoverImportException("could not decode $sourceUri", e)
         }
-        return flattenOntoOpaqueBackground(decoded)
     }
 
     private fun flattenOntoOpaqueBackground(bitmap: Bitmap): Bitmap {
-        val flattened = Bitmap.createBitmap(bitmap.width, bitmap.height, Bitmap.Config.ARGB_8888)
+        val flattened = createBitmap(bitmap.width, bitmap.height)
         Canvas(flattened).apply {
             drawColor(Color.WHITE)
             drawBitmap(bitmap, 0f, 0f, null)
@@ -110,7 +150,8 @@ class FileCoverImageStore @Inject constructor(
 
     private fun writeJpeg(bitmap: Bitmap, file: File) {
         FileOutputStream(file).use { out ->
-            bitmap.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, out)
+            val ok = bitmap.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, out)
+            if (!ok) throw CoverImportException("JPEG compression failed for ${file.path}")
         }
     }
 }
