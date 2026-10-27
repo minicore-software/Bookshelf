@@ -63,6 +63,7 @@
     <string name="add_book_rating_label">Rating</string>
     <string name="add_book_rating_unset">No rating</string>
     <string name="add_book_rating_clear_action">Clear rating</string>
+    <string name="add_book_rating_set_action">Set rating to %d</string>
     <plurals name="add_book_rating_set">
         <item quantity="one">%d of 5 stars</item>
         <item quantity="other">%d of 5 stars</item>
