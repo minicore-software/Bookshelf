@@ -191,6 +191,30 @@ class RoomLibraryRepositoryTest {
         assertNull(repository.observeBook(999).first())
     }
 
+    // Plan #32/F1: observeLibraryBook on a missing id emits null.
+    @Test
+    fun observeLibraryBook_onMissingId_emitsNull() = runTest {
+        assertNull(repository.observeLibraryBook(999).first())
+    }
+
+    // Plan #32/F2: observeLibraryBook maps the open-loan overlay the same way observeBooks does.
+    @Test
+    fun observeLibraryBook_withOpenLoan_mapsOverlay() = runTest {
+        val bookId = insertBook("Lent", BookStatus.Reading, 1_000)
+        val loanId = insertOpenLoan(bookId, borrowerName = "Jamie")
+
+        val detail = repository.observeLibraryBook(bookId).first()
+
+        assertEquals(bookId, detail?.book?.id)
+        val expectedOpenLoan = OpenLoan(
+            loanId = loanId,
+            borrowerName = "Jamie",
+            loanedAt = Instant.ofEpochMilli(1_000),
+            dueAt = LocalDate.of(2026, 11, 1),
+        )
+        assertEquals(expectedOpenLoan, detail?.openLoan)
+    }
+
     // F7/R5: a corrupt stored cover_color resolves to the id-derived preset through the mapper,
     // not a crash (same fallback path as neither-set, plan S3).
     @Test

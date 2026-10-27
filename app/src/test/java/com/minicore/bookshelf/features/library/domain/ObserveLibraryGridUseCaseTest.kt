@@ -63,6 +63,7 @@ private class RecordingLibraryRepository : LibraryRepository {
     override fun observeCounts(): Flow<LibraryCounts> = counts
 
     override fun observeBook(id: Long): Flow<Book?> = throw NotImplementedError()
+    override fun observeLibraryBook(id: Long): Flow<LibraryBook?> = throw NotImplementedError()
 
     override suspend fun addBook(book: Book): Long = throw NotImplementedError()
 

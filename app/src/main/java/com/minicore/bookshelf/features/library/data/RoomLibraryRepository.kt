@@ -36,6 +36,9 @@ class RoomLibraryRepository @Inject constructor(
     override fun observeBook(id: Long): Flow<Book?> =
         bookDao.observeById(id).map { entity -> entity?.toDomain() }
 
+    override fun observeLibraryBook(id: Long): Flow<LibraryBook?> =
+        bookDao.observeLibraryBook(id).map { row -> row?.toLibraryBook() }
+
     override suspend fun addBook(book: Book): Long {
         require(book.id == 0L) { "addBook requires book.id == 0L, was ${book.id}" }
         return bookDao.insert(book.toEntity())

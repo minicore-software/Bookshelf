@@ -245,6 +245,8 @@ class FakeLibraryRepository @Inject constructor() : LibraryRepository {
     }
 
     override fun observeBook(id: Long): Flow<Book?> = throw NotImplementedError()
+    override fun observeLibraryBook(id: Long): Flow<LibraryBook?> =
+        allBooks.map { all -> all.find { it.book.id == id } }
 
     override suspend fun addBook(book: Book): Long = throw NotImplementedError()
 

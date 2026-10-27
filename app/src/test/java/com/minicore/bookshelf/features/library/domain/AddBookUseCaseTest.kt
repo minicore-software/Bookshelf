@@ -32,6 +32,7 @@ private class AddBookFakeLibraryRepository : LibraryRepository {
     override fun observeLentOutBooks(): Flow<List<LentBook>> = MutableStateFlow(emptyList())
     override fun observeCounts(): Flow<LibraryCounts> = MutableStateFlow(LibraryCounts(0, 0, 0, 0, 0))
     override fun observeBook(id: Long): Flow<Book?> = MutableStateFlow(null)
+    override fun observeLibraryBook(id: Long): Flow<LibraryBook?> = MutableStateFlow(null)
 
     override suspend fun addBook(book: Book): Long {
         if (failInsert) throw IllegalStateException("insert failed")
