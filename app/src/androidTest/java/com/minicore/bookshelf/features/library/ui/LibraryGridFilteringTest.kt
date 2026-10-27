@@ -17,6 +17,8 @@ import com.minicore.bookshelf.performSemanticsClick
 import com.minicore.bookshelf.core.designsystem.BookshelfTheme
 import com.minicore.bookshelf.core.model.Book
 import com.minicore.bookshelf.core.model.BookStatus
+import com.minicore.bookshelf.core.model.Cover
+import com.minicore.bookshelf.core.model.CoverPreset
 import com.minicore.bookshelf.di.LibraryDataModule
 import com.minicore.bookshelf.features.library.domain.LibraryFilter
 import com.minicore.bookshelf.features.library.domain.LibraryRepository
@@ -72,7 +74,7 @@ class LibraryGridFilteringTest {
         title = title,
         author = "Author",
         isbn = null,
-        coverUri = null,
+        cover = Cover.Preset(CoverPreset.forBookId(id)),
         genre = null,
         pageCount = null,
         publishedYear = null,
@@ -227,4 +229,10 @@ class StatusAwareFakeLibraryRepository @Inject constructor() : LibraryRepository
             lentOut = all.count { it.openLoan != null },
         )
     }
+
+    override fun observeBook(id: Long): Flow<Book?> = throw NotImplementedError()
+
+    override suspend fun addBook(book: Book): Long = throw NotImplementedError()
+
+    override suspend fun updateBook(book: Book): Boolean = throw NotImplementedError()
 }

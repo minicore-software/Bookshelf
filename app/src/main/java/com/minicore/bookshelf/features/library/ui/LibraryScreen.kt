@@ -26,6 +26,8 @@ import androidx.compose.ui.unit.dp
 import com.minicore.bookshelf.core.designsystem.BookshelfTheme
 import com.minicore.bookshelf.core.model.Book
 import com.minicore.bookshelf.core.model.BookStatus
+import com.minicore.bookshelf.core.model.Cover
+import com.minicore.bookshelf.core.model.CoverPreset
 import com.minicore.bookshelf.features.library.domain.LibraryFilter
 import com.minicore.bookshelf.features.library.domain.LibraryGrid
 import com.minicore.bookshelf.features.library.domain.LibraryRows
@@ -197,13 +199,17 @@ private fun previewScreenBook(id: Long, title: String, status: BookStatus) = Boo
     title = title,
     author = "Author",
     isbn = null,
-    coverUri = null,
+    cover = Cover.Preset(CoverPreset.forBookId(id)),
     genre = null,
     pageCount = null,
     publishedYear = null,
     status = status,
     rating = null,
     synopsis = null,
+    comment = null,
+    memoryWhy = null,
+    memoryWhere = null,
+    memoryWhat = null,
     createdAt = Instant.EPOCH,
 )
 

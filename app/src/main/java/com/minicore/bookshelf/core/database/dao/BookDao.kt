@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Update
 import com.minicore.bookshelf.core.database.entity.BookEntity
 import com.minicore.bookshelf.core.model.BookStatus
 import kotlinx.coroutines.flow.Flow
@@ -18,6 +19,13 @@ interface BookDao {
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(book: BookEntity): Long
+
+    /** Plain `UPDATE`, never `REPLACE` (class KDoc) - rows affected; 0 = no such id (plan S8). */
+    @Update(onConflict = OnConflictStrategy.ABORT)
+    suspend fun update(book: BookEntity): Int
+
+    @Query("SELECT * FROM books WHERE id = :id")
+    fun observeById(id: Long): Flow<BookEntity?>
 
     @Query("DELETE FROM books WHERE id = :id")
     suspend fun deleteById(id: Long): Int

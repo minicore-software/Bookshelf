@@ -2,6 +2,8 @@ package com.minicore.bookshelf.features.library.ui
 
 import com.minicore.bookshelf.core.model.Book
 import com.minicore.bookshelf.core.model.BookStatus
+import com.minicore.bookshelf.core.model.Cover
+import com.minicore.bookshelf.core.model.CoverPreset
 import com.minicore.bookshelf.features.library.domain.LentOutRow
 import com.minicore.bookshelf.features.library.domain.LibraryFilter
 import com.minicore.bookshelf.features.library.domain.LibraryGrid
@@ -21,7 +23,7 @@ class LibraryUiStateTest {
         title = "Book $id",
         author = "Author",
         isbn = null,
-        coverUri = null,
+        cover = Cover.Preset(CoverPreset.forBookId(id)),
         genre = null,
         pageCount = null,
         publishedYear = null,

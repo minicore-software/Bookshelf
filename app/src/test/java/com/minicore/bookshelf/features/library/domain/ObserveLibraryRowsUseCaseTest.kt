@@ -2,6 +2,8 @@ package com.minicore.bookshelf.features.library.domain
 
 import com.minicore.bookshelf.core.model.Book
 import com.minicore.bookshelf.core.model.BookStatus
+import com.minicore.bookshelf.core.model.Cover
+import com.minicore.bookshelf.core.model.CoverPreset
 import com.minicore.bookshelf.features.library.domain.model.LentBook
 import com.minicore.bookshelf.features.library.domain.model.LibraryBook
 import com.minicore.bookshelf.features.library.domain.model.LibraryCounts
@@ -32,7 +34,7 @@ private fun book(id: Long, status: BookStatus = BookStatus.Reading) = Book(
     title = "Book $id",
     author = "Author $id",
     isbn = null,
-    coverUri = null,
+    cover = Cover.Preset(CoverPreset.forBookId(id)),
     genre = null,
     pageCount = null,
     publishedYear = null,
@@ -51,6 +53,12 @@ private class FakeLibraryRepository : LibraryRepository {
     override fun observeLentOutBooks(): Flow<List<LentBook>> = lent
     override fun observeCounts(): Flow<LibraryCounts> =
         MutableStateFlow(LibraryCounts(0, 0, 0, 0, 0))
+
+    override fun observeBook(id: Long): Flow<Book?> = throw NotImplementedError()
+
+    override suspend fun addBook(book: Book): Long = throw NotImplementedError()
+
+    override suspend fun updateBook(book: Book): Boolean = throw NotImplementedError()
 }
 
 /** AC1/AC2 (plan section 6): the use case combines the repository's flows verbatim, per date. */
