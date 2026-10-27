@@ -45,6 +45,11 @@ android {
             isReturnDefaultValues = true
         }
     }
+    sourceSets {
+        getByName("androidTest") {
+            assets.srcDirs("$projectDir/schemas")
+        }
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
@@ -107,5 +112,6 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.navigation.testing)
     androidTestImplementation(libs.hilt.android.testing)
+    androidTestImplementation(libs.room.testing)
     kspAndroidTest(libs.hilt.compiler)
 }

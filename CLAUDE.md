@@ -66,10 +66,11 @@ app/src/main/java/com/minicore/bookshelf/
  │    └── stats/
  │         └── ui/         # Reading insights (books/pages/streak/genres)
  ├── core/
- │    ├── model/            # Book, BookStatus - pure Kotlin domain model shared by every feature
+ │    ├── model/            # Book, BookStatus, Cover, CoverPreset - pure Kotlin domain model shared by every feature
  │    ├── database/         # Room database, shared DAOs
  │    │    ├── entity/      # BookEntity, LoanEntity
- │    │    ├── converter/   # BookshelfConverters (Instant/LocalDate/BookStatus <-> column types)
+ │    │    ├── converter/   # BookshelfConverters (Instant/LocalDate/BookStatus/CoverPreset <-> column types)
+ │    │    ├── migration/   # BookshelfMigrations (one Migration object per schema version step)
  │    │    └── dao/         # BookDao, LoanDao, LibraryBookRow/StatusCountRow projections
  │    ├── designsystem/    # BookshelfTheme, palette, typography (Fraunces/paper/ink/forest)
  │    │    └── component/  # Shared composables used across features (e.g. BookCover)
@@ -90,7 +91,7 @@ Four core entities, feature-first and normalized by ID (never by title — title
 
 | Entity | Key fields |
 |---|---|
-| `Book` | id, title, author, isbn?, coverUri?, genre?, pageCount?, publishedYear?, status (want_to_read / reading / finished), rating?, synopsis?, createdAt |
+| `Book` | id, title, author, isbn?, cover (`Cover.Image(uri)` XOR `Cover.Preset(CoverPreset)`, never both), genre?, pageCount?, publishedYear?, status (want_to_read / reading / finished), rating?, synopsis?, comment?, memoryWhy?, memoryWhere?, memoryWhat?, createdAt |
 | `ReadingLogEntry` | id, bookId, currentPage, mood? (hooked / steady / slow), note?, recordedAt |
 | `Loan` | id, bookId, borrowerName, borrowerContact?, loanedAt, dueAt, returnedAt?, remindEnabled, notes? |
 | `Shelf` / `Tag` | id, name — user-defined groupings (future; not required for v1) |
@@ -124,7 +125,7 @@ It intentionally avoids enterprise-level overengineering while keeping a scalabl
 | Compose BOM | 2026.09.00 |
 | Hilt | 2.60.1 |
 | Hilt Android Testing | 2.60.1 |
-| Room | 2.8.5 |
+| Room (incl. Room Testing) | 2.8.5 |
 | Navigation Compose | 2.10.2 |
 | Hilt Navigation Compose | 1.4.0 |
 | Lifecycle ViewModel/Runtime Compose | 2.11.0 |

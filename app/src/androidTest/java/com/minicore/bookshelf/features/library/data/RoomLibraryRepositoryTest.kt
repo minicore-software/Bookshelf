@@ -8,7 +8,10 @@ import com.minicore.bookshelf.core.database.BookshelfDatabase
 import com.minicore.bookshelf.core.database.applyBookshelfConfig
 import com.minicore.bookshelf.core.database.entity.BookEntity
 import com.minicore.bookshelf.core.database.entity.LoanEntity
+import com.minicore.bookshelf.core.model.Book
 import com.minicore.bookshelf.core.model.BookStatus
+import com.minicore.bookshelf.core.model.Cover
+import com.minicore.bookshelf.core.model.CoverPreset
 import com.minicore.bookshelf.features.library.domain.model.LibraryCounts
 import com.minicore.bookshelf.features.library.domain.model.OpenLoan
 import java.time.Instant
@@ -135,5 +138,70 @@ class RoomLibraryRepositoryTest {
         assertTrue(repository.observeBooks().first().isEmpty())
         assertTrue(repository.observeLentOutBooks().first().isEmpty())
         assertEquals(LibraryCounts(0, 0, 0, 0, 0), repository.observeCounts().first())
+    }
+
+    private fun sampleBook(cover: Cover = Cover.Preset(CoverPreset.Preset1)) = Book(
+        id = 0,
+        title = "A New Book",
+        author = "Author",
+        isbn = null,
+        cover = cover,
+        genre = null,
+        pageCount = null,
+        publishedYear = null,
+        status = BookStatus.WantToRead,
+        rating = null,
+        synopsis = null,
+        createdAt = Instant.ofEpochMilli(1_000),
+    )
+
+    // F10/AC4: addBook with id != 0 throws IllegalArgumentException.
+    @Test(expected = IllegalArgumentException::class)
+    fun addBook_withNonZeroId_throws() = runTest {
+        repository.addBook(sampleBook().copy(id = 5))
+    }
+
+    // F11/AC4: addBook -> observeBook -> updateBook round-trips, including a cover flip.
+    @Test
+    fun addBook_thenObserveBook_thenUpdateBook_roundTrips() = runTest {
+        val newId = repository.addBook(sampleBook())
+
+        val added = repository.observeBook(newId).first()
+        assertEquals(sampleBook().copy(id = newId), added)
+
+        val updated = added!!.copy(
+            comment = "Loved it",
+            cover = Cover.Image("content://covers/flip.jpg"),
+        )
+        val wasUpdated = repository.updateBook(updated)
+        assertTrue(wasUpdated)
+
+        val reread = repository.observeBook(newId).first()
+        assertEquals(updated, reread)
+
+        // Flip back the other way: Image -> Preset.
+        val flippedBack = reread!!.copy(cover = Cover.Preset(CoverPreset.Preset6))
+        repository.updateBook(flippedBack)
+        assertEquals(flippedBack, repository.observeBook(newId).first())
+    }
+
+    // AC4: observeBook on a missing id emits null.
+    @Test
+    fun observeBook_onMissingId_emitsNull() = runTest {
+        assertNull(repository.observeBook(999).first())
+    }
+
+    // F7/R5: a corrupt stored cover_color resolves to the id-derived preset through the mapper,
+    // not a crash (same fallback path as neither-set, plan S3).
+    @Test
+    fun observeBooks_withCorruptCoverColor_fallsBackToIdDerivedPreset() = runTest {
+        val bookId = insertBook("Corrupt Cover", BookStatus.Reading, 1_000)
+        database.openHelper.writableDatabase.execSQL(
+            "UPDATE books SET cover_color = 'bogus' WHERE id = $bookId"
+        )
+
+        val books = repository.observeBooks().first()
+
+        assertEquals(Cover.Preset(CoverPreset.forBookId(bookId)), books.single().book.cover)
     }
 }
