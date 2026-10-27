@@ -13,7 +13,19 @@ import org.junit.Test
  */
 class BookshelfMigrationsCoverageTest {
 
-    private val currentVersion = 2
+    /**
+     * Parsed from the `@Database(version = N, ...)` annotation's source text, not hardcoded:
+     * a future version bump without updating this file would otherwise pass even with missing
+     * migrations/schema files.
+     */
+    private val currentVersion: Int by lazy {
+        val source = File(
+            "src/main/java/com/minicore/bookshelf/core/database/BookshelfDatabase.kt"
+        ).readText()
+        val match = Regex("""version\s*=\s*(\d+)""").find(source)
+            ?: error("expected to find version = <N> in BookshelfDatabase.kt")
+        match.groupValues[1].toInt()
+    }
 
     @Test
     fun schemaJsonExists_forEveryVersionUpToCurrent() {
@@ -29,6 +41,10 @@ class BookshelfMigrationsCoverageTest {
     @Test
     fun migrationsList_coversEveryStepUpToCurrentVersion() {
         assertEquals(currentVersion - 1, BookshelfMigrations.ALL.size)
+
+        val expectedSteps = (1 until currentVersion).map { it to it + 1 }
+        val actualSteps = BookshelfMigrations.ALL.map { it.startVersion to it.endVersion }
+        assertEquals(expectedSteps, actualSteps)
     }
 
     @Test
