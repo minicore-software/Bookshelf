@@ -209,6 +209,48 @@ class AddBookEndToEndTest {
         composeRule.onNodeWithText("Added to your shelf").assertDoesNotExist()
     }
 
+    // Round 3 critical finding: `onBookAddedSnackbarShown` must push `set(KEY_BOOK_ADDED, null)`
+    // through the `SavedStateHandle`, not `remove()` it - `remove()` only clears the backing map
+    // entry, it never emits to the `StateFlow` `LibraryRoute` is already collecting via
+    // `getStateFlow`, so a second save in the same session (same `SavedStateHandle`, no
+    // recreation) would never re-trigger the Snackbar. Proves the fix by actually saving twice.
+    @Test
+    fun savingTwoBooksInARow_showsAddedSnackbarBothTimes() {
+        setContent()
+
+        composeRule.onNodeWithTag(LIBRARY_ADD_BOOK_FAB_TEST_TAG).performClick()
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            allNodesWithTag(ADD_BOOK_SHEET_TEST_TAG).fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+        }
+        composeRule.onNodeWithTag(BOOK_FORM_TITLE_FIELD_TEST_TAG).performTextInput("Dune")
+        composeRule.onNodeWithTag(ADD_BOOK_SAVE_BUTTON_TEST_TAG).performClick()
+
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            allNodesWithTag(ADD_BOOK_SHEET_TEST_TAG).fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
+        }
+        composeRule.onNodeWithText("Added to your shelf").assertIsDisplayed()
+
+        // Let the first Snackbar finish (and `onBookAddedSnackbarShown` clear the saved-state
+        // entry) before saving again.
+        composeRule.waitUntil(timeoutMillis = 8_000) {
+            composeRule.onAllNodesWithText("Added to your shelf")
+                .fetchSemanticsNodes(atLeastOneRootRequired = false)
+                .isEmpty()
+        }
+
+        composeRule.onNodeWithTag(LIBRARY_ADD_BOOK_FAB_TEST_TAG).performClick()
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            allNodesWithTag(ADD_BOOK_SHEET_TEST_TAG).fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+        }
+        composeRule.onNodeWithTag(BOOK_FORM_TITLE_FIELD_TEST_TAG).performTextInput("Dune Messiah")
+        composeRule.onNodeWithTag(ADD_BOOK_SAVE_BUTTON_TEST_TAG).performClick()
+
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            allNodesWithTag(ADD_BOOK_SHEET_TEST_TAG).fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
+        }
+        composeRule.onNodeWithText("Added to your shelf").assertIsDisplayed()
+    }
+
     private object TestDatabaseHolder {
         lateinit var database: BookshelfDatabase
     }

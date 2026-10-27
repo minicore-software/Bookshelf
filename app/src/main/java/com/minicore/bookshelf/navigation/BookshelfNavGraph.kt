@@ -44,7 +44,17 @@ fun BookshelfNavGraph(navController: NavHostController) {
                 onAddBookClick = { navController.navigateToAddBook() },
                 bookAddedEventId = bookAddedId,
                 onBookAddedSnackbarShown = {
-                    backStackEntry.savedStateHandle.remove<Long>(KEY_BOOK_ADDED)
+                    // Must be `set(KEY_BOOK_ADDED, null)`, not `remove()`: `remove()` only clears
+                    // the SavedStateHandle's backing map entry, it never pushes a value through
+                    // the live StateFlow returned by `getStateFlow` (see
+                    // androidx.lifecycle.SavedStateHandle - `remove` vs `set`/`flows[key]?.value =
+                    // value`). With `remove()`, after the FIRST save's Snackbar shows, the flow is
+                    // stuck on that first non-null id forever, so no subsequent save in the same
+                    // session re-triggers `LibraryRoute`'s `LaunchedEffect` (round 3 critical
+                    // finding). `set(..., null)` both pushes `null` through the flow (ending this
+                    // one-shot cleanly, since this callback runs after `showSnackbar` completes)
+                    // and still stores `null` for restore.
+                    backStackEntry.savedStateHandle[KEY_BOOK_ADDED] = null
                 },
             )
         }
