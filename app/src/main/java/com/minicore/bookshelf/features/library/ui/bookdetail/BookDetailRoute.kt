@@ -191,7 +191,16 @@ private fun BookDetailSheet(
                         onClick = onEditClick,
                         modifier = Modifier.padding(start = 10.dp).testTag(BOOK_DETAIL_EDIT_BUTTON_TEST_TAG),
                     ) {
-                        Text(stringResource(R.string.book_detail_edit))
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            // The glyph is decorative - clearAndSetSemantics {} keeps it out of
+                            // the Button's merged accessible label, so TalkBack announces just
+                            // "Edit", not "pencil Edit" (top suggestion, review round 1).
+                            Text(
+                                text = stringResource(R.string.book_detail_edit_glyph),
+                                modifier = Modifier.clearAndSetSemantics {},
+                            )
+                            Text(stringResource(R.string.book_detail_edit))
+                        }
                     }
                 }
             }
@@ -202,10 +211,20 @@ private fun BookDetailSheet(
 @Composable
 private fun BookHeader(book: Book, hasOpenLoan: Boolean) {
     Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-        BookCover(bookId = book.id, title = book.title, cover = book.cover)
+        // Decorative here (BookshelfTheme.extendedColors titleLarge Text right next to it already
+        // carries the title to TalkBack) - without this, BookCover's own Row-variant title overlay
+        // (drawn whenever there is no decoded bitmap, i.e. always for a Cover.Preset) announces
+        // the same title a second time.
+        BookCover(
+            bookId = book.id,
+            title = book.title,
+            cover = book.cover,
+            modifier = Modifier.clearAndSetSemantics {},
+        )
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(text = book.title, style = MaterialTheme.typography.titleLarge)
-            authorYearLine(book.author, book.publishedYear)?.let {
+            val authorYearFormat = stringResource(R.string.book_detail_author_year)
+            authorYearLine(book.author, book.publishedYear, authorYearFormat)?.let {
                 Text(it, style = MaterialTheme.typography.bodyMedium, color = BookshelfTheme.extendedColors.inkSoft)
             }
             ReadOnlyStarRating(rating = book.rating)
@@ -305,7 +324,7 @@ private fun CommentBlock(comment: String) {
                 color = BookshelfTheme.extendedColors.inkSoft,
             )
             Text(
-                text = "“$comment”",
+                text = stringResource(R.string.book_detail_comment_quoted, comment),
                 style = MaterialTheme.typography.bodyMedium.copy(fontStyle = FontStyle.Italic),
                 modifier = Modifier.testTag(BOOK_DETAIL_COMMENT_TEST_TAG),
             )
