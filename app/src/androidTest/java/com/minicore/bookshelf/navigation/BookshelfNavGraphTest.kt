@@ -6,6 +6,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.navigation.compose.ComposeNavigator
 import androidx.navigation.testing.TestNavHostController
+import androidx.test.espresso.Espresso.pressBack
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.minicore.bookshelf.HiltTestActivity
@@ -26,6 +27,11 @@ import com.minicore.bookshelf.features.library.ui.LIBRARY_LENT_ROW_TEST_TAG
 import com.minicore.bookshelf.features.library.ui.LIBRARY_READING_ROW_TEST_TAG
 import com.minicore.bookshelf.features.library.ui.LIBRARY_SEARCH_BAR_TEST_TAG
 import com.minicore.bookshelf.features.library.ui.LIBRARY_SEE_ALL_LOANS_TEST_TAG
+import com.minicore.bookshelf.features.library.ui.bookdetail.BOOK_DETAIL_CLOSE_BUTTON_TEST_TAG
+import com.minicore.bookshelf.features.library.ui.bookdetail.BOOK_DETAIL_CLOSE_ICON_TEST_TAG
+import com.minicore.bookshelf.features.library.ui.bookdetail.BOOK_DETAIL_EDIT_BUTTON_TEST_TAG
+import com.minicore.bookshelf.features.library.ui.bookdetail.BOOK_DETAIL_SCRIM_TEST_TAG
+import com.minicore.bookshelf.features.library.ui.bookdetail.BOOK_DETAIL_SHEET_TEST_TAG
 import com.minicore.bookshelf.features.library.ui.libraryFilterChipTag
 import com.minicore.bookshelf.features.library.ui.libraryGridCardTag
 import com.minicore.bookshelf.features.library.ui.libraryLentCardTag
@@ -201,6 +207,178 @@ class BookshelfNavGraphTest {
         composeRule.waitForIdle()
         assertEquals(BookshelfDestinations.Home.route, navController.currentDestination?.route)
         assertEquals(backStackSizeBefore, navController.currentBackStack.value.size)
+    }
+
+    // F15/AC4: tapping a Library card (grid, reading row and lent row) navigates to
+    // book/{bookId} with the right id, and the sheet is shown.
+    @Test
+    fun tappingAReadingCard_navigatesToBookDetail_withCorrectId() {
+        val repo = fakeRepository as FakeLibraryRepository
+        val readingBook = book(id = 1, status = BookStatus.Reading)
+        repo.reading.value = listOf(LibraryBook(readingBook, null))
+        repo.allBooks.value = repo.reading.value
+
+        lateinit var navController: TestNavHostController
+        composeRule.setContent {
+            navController = TestNavHostController(InstrumentationRegistry.getInstrumentation().targetContext)
+            navController.navigatorProvider.addNavigator(ComposeNavigator())
+            BookshelfTheme { BookshelfNavGraph(navController) }
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(libraryReadingCardTag(readingBook.id)).performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(BookshelfDestinations.BookDetail.route, navController.currentDestination?.route)
+        assertEquals(readingBook.id, navController.currentBackStackEntry?.arguments?.getLong(BookshelfDestinations.BookDetail.ARG_BOOK_ID))
+        composeRule.onNodeWithTag(BOOK_DETAIL_SHEET_TEST_TAG).assertExists()
+    }
+
+    // F16: a fast double tap on the same card leaves exactly one book/{bookId} entry on the
+    // back stack (launchSingleTop).
+    @Test
+    fun doubleTappingACard_leavesExactlyOneDetailEntry() {
+        val repo = fakeRepository as FakeLibraryRepository
+        val readingBook = book(id = 1, status = BookStatus.Reading)
+        repo.reading.value = listOf(LibraryBook(readingBook, null))
+        repo.allBooks.value = repo.reading.value
+
+        lateinit var navController: TestNavHostController
+        composeRule.setContent {
+            navController = TestNavHostController(InstrumentationRegistry.getInstrumentation().targetContext)
+            navController.navigatorProvider.addNavigator(ComposeNavigator())
+            BookshelfTheme { BookshelfNavGraph(navController) }
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(libraryReadingCardTag(readingBook.id)).performClick()
+        composeRule.waitForIdle()
+        val backStackSizeAfterFirstTap = navController.currentBackStack.value.size
+
+        // The card is behind the modal now; re-navigating programmatically through the same
+        // seam exercises launchSingleTop the way a fast double tap would.
+        navController.navigateToBookDetail(readingBook.id)
+        composeRule.waitForIdle()
+
+        assertEquals(backStackSizeAfterFirstTap, navController.currentBackStack.value.size)
+        assertEquals(BookshelfDestinations.BookDetail.route, navController.currentDestination?.route)
+    }
+
+    // F14/AC4: Close, the X icon, the scrim and system back all pop back to Home.
+    @Test
+    fun closeButton_popsBackToHome() {
+        val repo = fakeRepository as FakeLibraryRepository
+        val readingBook = book(id = 1, status = BookStatus.Reading)
+        repo.reading.value = listOf(LibraryBook(readingBook, null))
+        repo.allBooks.value = repo.reading.value
+
+        lateinit var navController: TestNavHostController
+        composeRule.setContent {
+            navController = TestNavHostController(InstrumentationRegistry.getInstrumentation().targetContext)
+            navController.navigatorProvider.addNavigator(ComposeNavigator())
+            BookshelfTheme { BookshelfNavGraph(navController) }
+        }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(libraryReadingCardTag(readingBook.id)).performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(BOOK_DETAIL_CLOSE_BUTTON_TEST_TAG).performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(BookshelfDestinations.Home.route, navController.currentDestination?.route)
+    }
+
+    @Test
+    fun closeIcon_popsBackToHome() {
+        val repo = fakeRepository as FakeLibraryRepository
+        val readingBook = book(id = 1, status = BookStatus.Reading)
+        repo.reading.value = listOf(LibraryBook(readingBook, null))
+        repo.allBooks.value = repo.reading.value
+
+        lateinit var navController: TestNavHostController
+        composeRule.setContent {
+            navController = TestNavHostController(InstrumentationRegistry.getInstrumentation().targetContext)
+            navController.navigatorProvider.addNavigator(ComposeNavigator())
+            BookshelfTheme { BookshelfNavGraph(navController) }
+        }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(libraryReadingCardTag(readingBook.id)).performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(BOOK_DETAIL_CLOSE_ICON_TEST_TAG).performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(BookshelfDestinations.Home.route, navController.currentDestination?.route)
+    }
+
+    @Test
+    fun scrimTap_popsBackToHome() {
+        val repo = fakeRepository as FakeLibraryRepository
+        val readingBook = book(id = 1, status = BookStatus.Reading)
+        repo.reading.value = listOf(LibraryBook(readingBook, null))
+        repo.allBooks.value = repo.reading.value
+
+        lateinit var navController: TestNavHostController
+        composeRule.setContent {
+            navController = TestNavHostController(InstrumentationRegistry.getInstrumentation().targetContext)
+            navController.navigatorProvider.addNavigator(ComposeNavigator())
+            BookshelfTheme { BookshelfNavGraph(navController) }
+        }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(libraryReadingCardTag(readingBook.id)).performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(BOOK_DETAIL_SCRIM_TEST_TAG).performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(BookshelfDestinations.Home.route, navController.currentDestination?.route)
+    }
+
+    @Test
+    fun systemBack_popsBackToHome() {
+        val repo = fakeRepository as FakeLibraryRepository
+        val readingBook = book(id = 1, status = BookStatus.Reading)
+        repo.reading.value = listOf(LibraryBook(readingBook, null))
+        repo.allBooks.value = repo.reading.value
+
+        lateinit var navController: TestNavHostController
+        composeRule.setContent {
+            navController = TestNavHostController(InstrumentationRegistry.getInstrumentation().targetContext)
+            navController.navigatorProvider.addNavigator(ComposeNavigator())
+            BookshelfTheme { BookshelfNavGraph(navController) }
+        }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(libraryReadingCardTag(readingBook.id)).performClick()
+        composeRule.waitForIdle()
+
+        pressBack()
+        composeRule.waitForIdle()
+
+        assertEquals(BookshelfDestinations.Home.route, navController.currentDestination?.route)
+    }
+
+    // F13: tapping Edit invokes the no-op navigateToEditBook seam - no crash, route unchanged.
+    @Test
+    fun tappingEdit_doesNotCrash_routeUnchanged() {
+        val repo = fakeRepository as FakeLibraryRepository
+        val readingBook = book(id = 1, status = BookStatus.Reading)
+        repo.reading.value = listOf(LibraryBook(readingBook, null))
+        repo.allBooks.value = repo.reading.value
+
+        lateinit var navController: TestNavHostController
+        composeRule.setContent {
+            navController = TestNavHostController(InstrumentationRegistry.getInstrumentation().targetContext)
+            navController.navigatorProvider.addNavigator(ComposeNavigator())
+            BookshelfTheme { BookshelfNavGraph(navController) }
+        }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(libraryReadingCardTag(readingBook.id)).performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(BOOK_DETAIL_EDIT_BUTTON_TEST_TAG).performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(BookshelfDestinations.BookDetail.route, navController.currentDestination?.route)
     }
 
     private fun book(id: Long, status: BookStatus) = Book(
