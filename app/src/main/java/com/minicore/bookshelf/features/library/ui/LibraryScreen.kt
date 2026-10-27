@@ -16,8 +16,11 @@ import androidx.compose.foundation.lazy.grid.LazyGridScope
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -72,6 +75,7 @@ fun LibraryScreen(
     onSeeAllLoansClick: () -> Unit = {},
     onFilterSelected: (LibraryFilter) -> Unit = {},
     onAddBookClick: () -> Unit = {},
+    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
 ) {
     Box(
         modifier = modifier
@@ -152,6 +156,8 @@ fun LibraryScreen(
                 .align(Alignment.BottomEnd)
                 .padding(end = FabMargin, bottom = FabMargin),
         )
+
+        SnackbarHost(hostState = snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter))
     }
 }
 

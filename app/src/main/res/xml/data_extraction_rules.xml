@@ -13,5 +13,10 @@
     <device-transfer>
         <include domain="database" path="bookshelf.db"/>
         <include domain="database" path="bookshelf.db-wal"/>
+        <!-- ADR-003: cover images move with a same-device transfer, but never to the cloud
+             (see <cloud-backup> above, which has no "file" include) and never into the
+             pre-API-31 <full-backup-content> below - a cloud restore falls back to the
+             id-derived colour placeholder (BookCover), by design. -->
+        <include domain="file" path="covers/"/>
     </device-transfer>
 </data-extraction-rules>
