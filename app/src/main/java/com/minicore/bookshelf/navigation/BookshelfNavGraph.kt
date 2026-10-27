@@ -1,7 +1,6 @@
 package com.minicore.bookshelf.navigation
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.window.DialogProperties
@@ -14,8 +13,13 @@ import com.minicore.bookshelf.features.library.ui.addbook.AddBookResult
 import com.minicore.bookshelf.features.library.ui.addbook.AddBookRoute
 
 /** A12: the result key `AddBookRoute` -> `LibraryRoute` hand off a successful save through, never
- * exposed outside `navigation/` (the Library side only sees a plain `Boolean`, see
- * `LibraryRoute.showBookAddedSnackbar`). */
+ * exposed outside `navigation/` (the Library side only sees a plain id, see
+ * `LibraryRoute.bookAddedEventId`). Carries the new book's id - a fresh value every save - rather
+ * than a `Boolean`, so `LibraryRoute`'s `LaunchedEffect` keyed on it is a one-shot per save: there
+ * is no need to (and this must not) write a reset value back afterwards, since doing so
+ * synchronously here previously changed the key under `LibraryRoute`'s `LaunchedEffect`, which
+ * cancelled its in-flight `showSnackbar` call about a frame after it started (critical finding
+ * #5). */
 private const val KEY_BOOK_ADDED = "book_added"
 
 @Composable
@@ -26,20 +30,16 @@ fun BookshelfNavGraph(navController: NavHostController) {
     ) {
         composable(BookshelfDestinations.Home.route) { backStackEntry ->
             // stub until search/Book Detail/My Loans ship (epic #17 D18, D19)
-            val bookAdded by backStackEntry.savedStateHandle
-                .getStateFlow(KEY_BOOK_ADDED, false)
+            val bookAddedId by backStackEntry.savedStateHandle
+                .getStateFlow<Long?>(KEY_BOOK_ADDED, null)
                 .collectAsStateWithLifecycle()
-
-            LaunchedEffect(bookAdded) {
-                if (bookAdded) backStackEntry.savedStateHandle[KEY_BOOK_ADDED] = false
-            }
 
             LibraryRoute(
                 onSearchClick = {},
                 onBookClick = {},
                 onSeeAllLoansClick = {},
                 onAddBookClick = { navController.navigateToAddBook() },
-                showBookAddedSnackbar = bookAdded,
+                bookAddedEventId = bookAddedId,
             )
         }
         dialog(
@@ -54,7 +54,7 @@ fun BookshelfNavGraph(navController: NavHostController) {
             AddBookRoute(
                 onDone = { result ->
                     if (result is AddBookResult.Saved) {
-                        navController.previousBackStackEntry?.savedStateHandle?.set(KEY_BOOK_ADDED, true)
+                        navController.previousBackStackEntry?.savedStateHandle?.set(KEY_BOOK_ADDED, result.bookId)
                     }
                     navController.popBackStack()
                 },
