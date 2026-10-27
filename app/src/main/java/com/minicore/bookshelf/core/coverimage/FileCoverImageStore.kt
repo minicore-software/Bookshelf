@@ -89,7 +89,10 @@ class FileCoverImageStore @Inject constructor(
         val draftRefFile = resolveDraft(draftRef) ?: return@withContext
         draftRefFile.parentFile?.mkdirs()
         if (!storedFile.renameTo(draftRefFile)) {
-            storedFile.copyTo(draftRefFile, overwrite = true)
+            // `copyTo` can throw `IOException` - swallowed here so a failure to roll back the
+            // cover never masks the original insert exception this runs inside the catch of
+            // (optional finding, round 2).
+            runCatching { storedFile.copyTo(draftRefFile, overwrite = true) }
             storedFile.delete()
         }
     }
