@@ -1,9 +1,12 @@
 package com.minicore.bookshelf.navigation
 
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTouchInput
 import androidx.navigation.compose.ComposeNavigator
 import androidx.navigation.testing.TestNavHostController
 import androidx.test.espresso.Espresso.pressBack
@@ -30,6 +33,7 @@ import com.minicore.bookshelf.features.library.ui.LIBRARY_SEE_ALL_LOANS_TEST_TAG
 import com.minicore.bookshelf.features.library.ui.bookdetail.BOOK_DETAIL_CLOSE_BUTTON_TEST_TAG
 import com.minicore.bookshelf.features.library.ui.bookdetail.BOOK_DETAIL_CLOSE_ICON_TEST_TAG
 import com.minicore.bookshelf.features.library.ui.bookdetail.BOOK_DETAIL_EDIT_BUTTON_TEST_TAG
+import com.minicore.bookshelf.features.library.ui.bookdetail.BOOK_DETAIL_LEND_BUTTON_TEST_TAG
 import com.minicore.bookshelf.features.library.ui.bookdetail.BOOK_DETAIL_SCRIM_TEST_TAG
 import com.minicore.bookshelf.features.library.ui.bookdetail.BOOK_DETAIL_SHEET_TEST_TAG
 import com.minicore.bookshelf.features.library.ui.libraryFilterChipTag
@@ -121,10 +125,10 @@ class BookshelfNavGraphTest {
         assertEquals(backStackSizeBefore, navController.currentBackStack.value.size)
     }
 
-    // F19/AC4(b): with one reading and one lent book from a @BindValue fake repository, tapping a
-    // card and tapping "See all" each leave the route and back-stack size unchanged.
+    // F19/AC4(b): "See all" leaves the route and back-stack size unchanged - it has no Book
+    // Detail destination of its own (epic #17 D19).
     @Test
-    fun populatedRows_tappingCardOrSeeAll_doesNotChangeTheBackStack() {
+    fun tappingSeeAllLoans_doesNotChangeTheBackStack() {
         val repo = fakeRepository as FakeLibraryRepository
         val readingBook = book(id = 1, status = BookStatus.Reading)
         val lentBook = book(id = 2, status = BookStatus.Reading)
@@ -148,26 +152,49 @@ class BookshelfNavGraphTest {
 
         val backStackSizeBefore = navController.currentBackStack.value.size
 
-        composeRule.onNodeWithTag(libraryReadingCardTag(readingBook.id)).performClick()
-        composeRule.waitForIdle()
-        assertEquals(BookshelfDestinations.Home.route, navController.currentDestination?.route)
-        assertEquals(backStackSizeBefore, navController.currentBackStack.value.size)
-
-        composeRule.onNodeWithTag(libraryLentCardTag(lentBook.id)).performClick()
-        composeRule.waitForIdle()
-        assertEquals(BookshelfDestinations.Home.route, navController.currentDestination?.route)
-        assertEquals(backStackSizeBefore, navController.currentBackStack.value.size)
-
         composeRule.onNodeWithTag(LIBRARY_SEE_ALL_LOANS_TEST_TAG).performClick()
         composeRule.waitForIdle()
         assertEquals(BookshelfDestinations.Home.route, navController.currentDestination?.route)
         assertEquals(backStackSizeBefore, navController.currentBackStack.value.size)
     }
 
-    // F8/F9 (plan AC4b): tapping a grid card, and tapping a chip, each leave the route and
-    // back-stack size unchanged - grid taps and chip taps are both no-ops at the nav level.
+    // F15/AC4: tapping the lent-out row's card navigates to book/{bookId} with the right id, and
+    // the sheet is shown (mirrors tappingAReadingCard_navigatesToBookDetail_withCorrectId, which
+    // covers the currently-reading row; this is the other #20 row kind).
     @Test
-    fun populatedGrid_tappingCardOrChip_doesNotChangeTheBackStack() {
+    fun tappingALentCard_navigatesToBookDetail_withCorrectId() {
+        val repo = fakeRepository as FakeLibraryRepository
+        val lentBook = book(id = 2, status = BookStatus.Reading)
+        repo.lent.value = listOf(
+            LentBook(lentBook, OpenLoan(1, "Priya", Instant.EPOCH, LocalDate.now().plusDays(3))),
+        )
+
+        lateinit var navController: TestNavHostController
+        composeRule.setContent {
+            navController = TestNavHostController(InstrumentationRegistry.getInstrumentation().targetContext)
+            navController.navigatorProvider.addNavigator(ComposeNavigator())
+            BookshelfTheme {
+                BookshelfNavGraph(navController)
+            }
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(libraryLentCardTag(lentBook.id)).performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(BookshelfDestinations.BookDetail.route, navController.currentDestination?.route)
+        assertEquals(lentBook.id, navController.currentBackStackEntry?.arguments?.getLong(BookshelfDestinations.BookDetail.ARG_BOOK_ID))
+        composeRule.onNodeWithTag(BOOK_DETAIL_SHEET_TEST_TAG).assertExists()
+
+        navController.popBackStack()
+        composeRule.waitForIdle()
+        assertEquals(BookshelfDestinations.Home.route, navController.currentDestination?.route)
+    }
+
+    // F8/F9 (plan AC4b): tapping a chip leaves the route and back-stack size unchanged - the
+    // filter is local UI state, not a navigation event.
+    @Test
+    fun tappingAFilterChip_doesNotChangeTheBackStack() {
         val repo = fakeRepository as FakeLibraryRepository
         val readingBook = book(id = 1, status = BookStatus.Reading)
         val finishedBook = book(id = 2, status = BookStatus.Finished)
@@ -188,6 +215,34 @@ class BookshelfNavGraphTest {
 
         val backStackSizeBefore = navController.currentBackStack.value.size
 
+        composeRule.onNodeWithTag(libraryFilterChipTag(LibraryFilter.Finished)).performScrollTo().performSemanticsClick()
+        composeRule.waitForIdle()
+        assertEquals(BookshelfDestinations.Home.route, navController.currentDestination?.route)
+        assertEquals(backStackSizeBefore, navController.currentBackStack.value.size)
+    }
+
+    // F15/AC4: tapping either grid card (a reading-status book and a finished-status book, in
+    // turn) navigates to book/{bookId} with the right id, closing the modal between taps.
+    @Test
+    fun tappingAGridCard_navigatesToBookDetail_withCorrectId() {
+        val repo = fakeRepository as FakeLibraryRepository
+        val readingBook = book(id = 1, status = BookStatus.Reading)
+        val finishedBook = book(id = 2, status = BookStatus.Finished)
+        repo.allBooks.value = listOf(
+            LibraryBook(readingBook, null),
+            LibraryBook(finishedBook, null),
+        )
+
+        lateinit var navController: TestNavHostController
+        composeRule.setContent {
+            navController = TestNavHostController(InstrumentationRegistry.getInstrumentation().targetContext)
+            navController.navigatorProvider.addNavigator(ComposeNavigator())
+            BookshelfTheme {
+                BookshelfNavGraph(navController)
+            }
+        }
+        composeRule.waitForIdle()
+
         // performScrollTo()'s minimal "scroll into view" can land a target right at the
         // viewport's bottom-end corner, which the always-on "Add a book" FAB also occupies
         // (BOOKSHELF-0022) - performSemanticsClick() invokes the same onClick handler without
@@ -195,18 +250,16 @@ class BookshelfNavGraphTest {
         // ComposeTestActions.performSemanticsClick's KDoc).
         composeRule.onNodeWithTag(libraryGridCardTag(readingBook.id)).performScrollTo().performSemanticsClick()
         composeRule.waitForIdle()
-        assertEquals(BookshelfDestinations.Home.route, navController.currentDestination?.route)
-        assertEquals(backStackSizeBefore, navController.currentBackStack.value.size)
+        assertEquals(BookshelfDestinations.BookDetail.route, navController.currentDestination?.route)
+        assertEquals(readingBook.id, navController.currentBackStackEntry?.arguments?.getLong(BookshelfDestinations.BookDetail.ARG_BOOK_ID))
 
-        composeRule.onNodeWithTag(libraryFilterChipTag(LibraryFilter.Finished)).performScrollTo().performSemanticsClick()
+        navController.popBackStack()
         composeRule.waitForIdle()
-        assertEquals(BookshelfDestinations.Home.route, navController.currentDestination?.route)
-        assertEquals(backStackSizeBefore, navController.currentBackStack.value.size)
 
         composeRule.onNodeWithTag(libraryGridCardTag(finishedBook.id)).performScrollTo().performSemanticsClick()
         composeRule.waitForIdle()
-        assertEquals(BookshelfDestinations.Home.route, navController.currentDestination?.route)
-        assertEquals(backStackSizeBefore, navController.currentBackStack.value.size)
+        assertEquals(BookshelfDestinations.BookDetail.route, navController.currentDestination?.route)
+        assertEquals(finishedBook.id, navController.currentBackStackEntry?.arguments?.getLong(BookshelfDestinations.BookDetail.ARG_BOOK_ID))
     }
 
     // F15/AC4: tapping a Library card (grid, reading row and lent row) navigates to
@@ -328,7 +381,13 @@ class BookshelfNavGraphTest {
         composeRule.onNodeWithTag(libraryReadingCardTag(readingBook.id)).performClick()
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithTag(BOOK_DETAIL_SCRIM_TEST_TAG).performClick()
+        // The scrim and the bottom-aligned sheet are siblings covering the whole composable; the
+        // sheet is capped at 92% of height-minus-statusbar, so a default center-click lands on
+        // the Surface (which blocks pass-through), not the scrim. Click in the top band - always
+        // scrim, never the sheet - instead (critical finding, review round 1).
+        composeRule.onNodeWithTag(BOOK_DETAIL_SCRIM_TEST_TAG).performTouchInput {
+            click(Offset(centerX, height * 0.03f))
+        }
         composeRule.waitForIdle()
 
         assertEquals(BookshelfDestinations.Home.route, navController.currentDestination?.route)
@@ -376,6 +435,31 @@ class BookshelfNavGraphTest {
         composeRule.waitForIdle()
 
         composeRule.onNodeWithTag(BOOK_DETAIL_EDIT_BUTTON_TEST_TAG).performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(BookshelfDestinations.BookDetail.route, navController.currentDestination?.route)
+    }
+
+    // AC2 (plan #32): tapping Lend Out invokes the no-op onLendClick seam - no crash, route
+    // unchanged (mirrors tappingEdit_doesNotCrash_routeUnchanged).
+    @Test
+    fun tappingLendOut_routeUnchanged() {
+        val repo = fakeRepository as FakeLibraryRepository
+        val readingBook = book(id = 1, status = BookStatus.Reading)
+        repo.reading.value = listOf(LibraryBook(readingBook, null))
+        repo.allBooks.value = repo.reading.value
+
+        lateinit var navController: TestNavHostController
+        composeRule.setContent {
+            navController = TestNavHostController(InstrumentationRegistry.getInstrumentation().targetContext)
+            navController.navigatorProvider.addNavigator(ComposeNavigator())
+            BookshelfTheme { BookshelfNavGraph(navController) }
+        }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(libraryReadingCardTag(readingBook.id)).performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(BOOK_DETAIL_LEND_BUTTON_TEST_TAG).performClick()
         composeRule.waitForIdle()
 
         assertEquals(BookshelfDestinations.BookDetail.route, navController.currentDestination?.route)
