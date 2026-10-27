@@ -42,25 +42,44 @@ private class AddBookFakeLibraryRepository : LibraryRepository {
     override suspend fun updateBook(book: Book): Boolean = throw NotImplementedError()
 }
 
+/**
+ * Models the same move semantics as [com.minicore.bookshelf.core.coverimage.FileCoverImageStore]
+ * (F19): [commit] "moves" a draft to a stored ref, and a draft ref only [exists] again once
+ * [uncommit] moves it back - so a test can assert a retry after rollback actually succeeds.
+ */
 private class AddBookFakeCoverImageStore : CoverImageStore {
     val committed = mutableListOf<String>()
     val deleted = mutableListOf<String>()
+    val uncommitted = mutableListOf<Pair<String, String>>()
+    private val draftsOnDisk = mutableSetOf<String>()
+    private val storedOnDisk = mutableSetOf<String>()
     var nextStoredRef = "covers/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa.jpg"
 
     override suspend fun importDraft(sourceUri: String): String = throw NotImplementedError()
 
-    override suspend fun discardDraft(draftRef: String) = Unit
+    override suspend fun discardDraft(draftRef: String) {
+        draftsOnDisk.remove(draftRef)
+    }
 
     override suspend fun commit(draftRef: String): String {
         committed += draftRef
+        draftsOnDisk.remove(draftRef)
+        storedOnDisk += nextStoredRef
         return nextStoredRef
+    }
+
+    override suspend fun uncommit(storedRef: String, draftRef: String) {
+        uncommitted += storedRef to draftRef
+        storedOnDisk.remove(storedRef)
+        draftsOnDisk += draftRef
     }
 
     override suspend fun delete(storedRef: String) {
         deleted += storedRef
+        storedOnDisk.remove(storedRef)
     }
 
-    override suspend fun exists(ref: String): Boolean = true
+    override suspend fun exists(ref: String): Boolean = ref in draftsOnDisk || ref in storedOnDisk
 }
 
 /** FF-A1 (plan #31 section 6): [AddBookUseCase]'s write-boundary rules (decision A6). */
@@ -148,16 +167,26 @@ class AddBookUseCaseTest {
         assertEquals(Cover.Image(coverImages.nextStoredRef), saved.cover)
     }
 
-    // F19: an insert failure after a cover commit rolls the committed file back, and rethrows.
+    // F19: an insert failure after a cover commit un-commits the file back to its original draft
+    // ref (not delete - a bare delete would strand the committed file and break retry), and
+    // rethrows. A retry referencing the same draft ref then succeeds.
     @Test
-    fun insertFailureAfterCoverCommit_deletesTheCommittedFile() = runTest {
+    fun insertFailureAfterCoverCommit_rollsBackTheCommittedFile_andRetrySucceeds() = runTest {
         repository.failInsert = true
 
         assertThrows(IllegalStateException::class.java) {
             runBlocking { useCase(BookDraft(title = "Dune", cover = CoverDraft.Image("cover-drafts/bbbb.jpg"))) }
         }
 
-        assertEquals(listOf(coverImages.nextStoredRef), coverImages.deleted)
+        assertEquals(listOf(coverImages.nextStoredRef to "cover-drafts/bbbb.jpg"), coverImages.uncommitted)
+        assertTrue(coverImages.deleted.isEmpty())
+        assertTrue(coverImages.exists("cover-drafts/bbbb.jpg"))
+
+        repository.failInsert = false
+        val id = useCase(BookDraft(title = "Dune", cover = CoverDraft.Image("cover-drafts/bbbb.jpg")))
+
+        assertEquals(7L, id)
+        assertEquals(Cover.Image(coverImages.nextStoredRef), requireNotNull(repository.lastAdded).cover)
     }
 
     // No rollback should ever happen for a preset cover (nothing was committed).
@@ -170,6 +199,7 @@ class AddBookUseCaseTest {
         }
 
         assertTrue(coverImages.deleted.isEmpty())
+        assertTrue(coverImages.uncommitted.isEmpty())
         assertFalse(coverImages.committed.isNotEmpty())
     }
 }

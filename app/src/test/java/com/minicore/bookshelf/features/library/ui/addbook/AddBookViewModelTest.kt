@@ -70,6 +70,8 @@ private class FakeCoverImageStore : CoverImageStore {
 
     override suspend fun commit(draftRef: String): String = "covers/22222222-2222-2222-2222-222222222222.jpg"
 
+    override suspend fun uncommit(storedRef: String, draftRef: String) = Unit
+
     override suspend fun delete(storedRef: String) = Unit
 
     override suspend fun exists(ref: String): Boolean = draftExists
@@ -188,6 +190,22 @@ class AddBookViewModelTest {
         assertFalse(vm.uiState.value.isImportingImage)
     }
 
+    // Top suggestion #2: if the user picks a different cover while an import is still in flight,
+    // the import's success must not clobber that newer choice - the freshly imported draft is
+    // discarded instead.
+    @Test
+    fun imagePicked_userPicksAPresetMidImport_successDoesNotOverrideTheNewerChoice() = runTest(dispatcher) {
+        val vm = viewModel()
+
+        vm.onImagePicked("content://picked")
+        vm.onPresetSelected(CoverPreset.Preset5)
+        dispatcher.scheduler.runCurrent()
+
+        assertEquals(CoverDraft.Preset(CoverPreset.Preset5), vm.uiState.value.cover)
+        assertFalse(vm.uiState.value.isImportingImage)
+        assertEquals(listOf(coverImages.nextDraftRef), coverImages.discarded)
+    }
+
     // canSave is false while an import is in flight.
     @Test
     fun canSave_falseWhileImporting() = runTest(dispatcher) {
@@ -246,6 +264,22 @@ class AddBookViewModelTest {
         assertEquals("Dune", state.title)
         assertEquals("Frank Herbert", state.author)
         assertTrue(state.canSave)
+    }
+
+    // Top suggestion #3: two dismiss taps in the same frame must not both send Cancelled (which
+    // would otherwise risk popping the back stack twice).
+    @Test
+    fun doubleDismissRequest_emitsCancelledExactlyOnce() = runTest(dispatcher) {
+        val vm = viewModel()
+        val results = mutableListOf<AddBookResult>()
+        val job = CoroutineScope(dispatcher).launch { vm.onDone.collect { results += it } }
+
+        vm.onDismissRequest()
+        vm.onDismissRequest()
+        dispatcher.scheduler.runCurrent()
+
+        assertEquals(listOf(AddBookResult.Cancelled), results)
+        job.cancel()
     }
 
     // AC5: Cancel discards - no insert, draft image discarded, Cancelled emitted.

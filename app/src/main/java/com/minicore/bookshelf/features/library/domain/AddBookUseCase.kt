@@ -26,8 +26,9 @@ import javax.inject.Inject
  * - `isbn`, `genre`, `pageCount`, `synopsis` and the memory fields are `null`.
  *
  * Cover commit order (plan step 2-4): a [CoverDraft.Image] is committed to permanent storage
- * *before* the insert; if the insert then throws, the committed file is deleted and the original
- * exception is rethrown, so a failed save never leaves an orphan file.
+ * *before* the insert; if the insert then throws, the committed file is moved back to its
+ * original draft ref (F19) and the original exception is rethrown - so a retry, which still
+ * references that same draft ref, can succeed, instead of finding neither file.
  */
 class AddBookUseCase @Inject constructor(
     private val repository: LibraryRepository,
@@ -49,11 +50,13 @@ class AddBookUseCase @Inject constructor(
         val comment = draft.comment.trim().ifEmpty { null }
 
         var committedCoverRef: String? = null
+        var originalDraftRef: String? = null
         val cover: Cover = when (val coverDraft = draft.cover) {
             is CoverDraft.Preset -> Cover.Preset(coverDraft.preset)
             is CoverDraft.Image -> {
                 val ref = coverImages.commit(coverDraft.draftRef)
                 committedCoverRef = ref
+                originalDraftRef = coverDraft.draftRef
                 Cover.Image(ref)
             }
         }
@@ -77,7 +80,9 @@ class AddBookUseCase @Inject constructor(
                 ),
             )
         } catch (e: Exception) {
-            committedCoverRef?.let { coverImages.delete(it) }
+            val ref = committedCoverRef
+            val draftRef = originalDraftRef
+            if (ref != null && draftRef != null) coverImages.uncommit(ref, draftRef)
             throw e
         }
     }
