@@ -16,9 +16,9 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -45,9 +45,10 @@ private const val UNSET_ALPHA = 0.25f
  *
  * @param rating `null` = unset, else `1..5`.
  * @param onRatingTap tapping the currently-set star clears it (plan onRatingTap rule).
+ * @param enabled when `false`, stars are not tappable and no custom actions are exposed.
  */
 @Composable
-fun StarRatingInput(rating: Int?, onRatingTap: (Int) -> Unit, modifier: Modifier = Modifier) {
+fun StarRatingInput(rating: Int?, onRatingTap: (Int) -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
     val stateDescriptionText = if (rating == null) {
         stringResource(R.string.add_book_rating_unset)
     } else {
@@ -55,19 +56,26 @@ fun StarRatingInput(rating: Int?, onRatingTap: (Int) -> Unit, modifier: Modifier
     }
     val contentDescriptionText = stringResource(R.string.add_book_rating_label)
     val clearLabel = stringResource(R.string.add_book_rating_clear_action)
+    val setLabelFormat = stringResource(R.string.add_book_rating_set_action)
 
     Row(
         modifier = modifier
             .testTag(STAR_RATING_INPUT_TEST_TAG)
-            .semantics {
+            // One composite node: a Row with selectable children is not a semantics leaf, so
+            // TalkBack would otherwise stop on each of the 5 stars individually instead of this
+            // whole control (plan #31 UX spec section 5).
+            .clearAndSetSemantics {
                 contentDescription = contentDescriptionText
                 stateDescription = stateDescriptionText
-                customActions = buildList {
-                    for (n in 1..5) {
-                        add(CustomAccessibilityAction(label = "Set rating to $n") { onRatingTap(n); true })
-                    }
-                    if (rating != null) {
-                        add(CustomAccessibilityAction(label = clearLabel) { onRatingTap(rating); true })
+                if (enabled) {
+                    customActions = buildList {
+                        for (n in 1..5) {
+                            val label = String.format(setLabelFormat, n)
+                            add(CustomAccessibilityAction(label = label) { onRatingTap(n); true })
+                        }
+                        if (rating != null) {
+                            add(CustomAccessibilityAction(label = clearLabel) { onRatingTap(rating); true })
+                        }
                     }
                 }
             },
@@ -80,7 +88,7 @@ fun StarRatingInput(rating: Int?, onRatingTap: (Int) -> Unit, modifier: Modifier
                 modifier = Modifier
                     .testTag(STAR_RATING_STAR_TEST_TAG_PREFIX + n)
                     .size(StarTouchTarget)
-                    .selectable(selected = filled, onClick = { onRatingTap(n) }),
+                    .selectable(selected = filled, enabled = enabled, onClick = { onRatingTap(n) }),
             ) {
                 drawStar(color = tint, glyphSizePx = StarGlyphSize.toPx(), filled = filled)
             }

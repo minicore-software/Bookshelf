@@ -83,8 +83,8 @@ fun BookForm(
             enabled = enabled,
             singleLine = true,
         )
-        YearStepperField(yearText = yearText, onYearTextChange = onYearTextChange, onStep = onYearStep)
-        StarRatingInput(rating = rating, onRatingTap = onRatingTap)
+        YearStepperField(yearText = yearText, onYearTextChange = onYearTextChange, onStep = onYearStep, enabled = enabled)
+        StarRatingInput(rating = rating, onRatingTap = onRatingTap, enabled = enabled)
         OutlinedTextField(
             value = comment,
             onValueChange = onCommentChange,

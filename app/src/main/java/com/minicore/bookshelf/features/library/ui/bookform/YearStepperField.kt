@@ -16,7 +16,10 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
@@ -42,41 +45,48 @@ fun YearStepperField(
     onYearTextChange: (String) -> Unit,
     onStep: (Int) -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
 ) {
     val increaseLabel = stringResource(R.string.add_book_year_increase)
     val decreaseLabel = stringResource(R.string.add_book_year_decrease)
 
     Row(
-        modifier = modifier
-            .testTag(YEAR_STEPPER_FIELD_TEST_TAG)
-            .semantics {
-                customActions = listOf(
-                    CustomAccessibilityAction(increaseLabel) { onStep(1); true },
-                    CustomAccessibilityAction(decreaseLabel) { onStep(-1); true },
-                )
-            },
+        modifier = modifier.testTag(YEAR_STEPPER_FIELD_TEST_TAG),
         verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
     ) {
         OutlinedTextField(
             value = yearText,
             onValueChange = onYearTextChange,
-            modifier = Modifier.weight(1f),
+            // The custom actions live on the text field's own semantics, not an ancestor Row -
+            // a Row with two clickable chevron children is not a semantics leaf, so TalkBack
+            // would never actually stop on a Row-level action (same bug class as StarRatingInput).
+            modifier = Modifier.weight(1f).semantics {
+                if (enabled) {
+                    customActions = listOf(
+                        CustomAccessibilityAction(increaseLabel) { onStep(1); true },
+                        CustomAccessibilityAction(decreaseLabel) { onStep(-1); true },
+                    )
+                }
+            },
             label = { Text(stringResource(R.string.add_book_field_year)) },
             placeholder = { Text(stringResource(R.string.add_book_field_year_placeholder)) },
             keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Number),
             singleLine = true,
+            enabled = enabled,
         )
         Column {
             StepperChevron(
                 testTag = YEAR_STEPPER_INCREASE_TEST_TAG,
                 contentDescription = increaseLabel,
                 pointingUp = true,
+                enabled = enabled,
                 onClick = { onStep(1) },
             )
             StepperChevron(
                 testTag = YEAR_STEPPER_DECREASE_TEST_TAG,
                 contentDescription = decreaseLabel,
                 pointingUp = false,
+                enabled = enabled,
                 onClick = { onStep(-1) },
             )
         }
@@ -84,13 +94,23 @@ fun YearStepperField(
 }
 
 @Composable
-private fun StepperChevron(testTag: String, contentDescription: String, pointingUp: Boolean, onClick: () -> Unit) {
+private fun StepperChevron(
+    testTag: String,
+    contentDescription: String,
+    pointingUp: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
     val tint = MaterialTheme.colorScheme.onSurfaceVariant
     Canvas(
         modifier = Modifier
             .testTag(testTag)
             .size(ChevronTouchTarget)
-            .clickable(onClickLabel = contentDescription, onClick = onClick),
+            .clickable(enabled = enabled, onClickLabel = contentDescription, onClick = onClick)
+            .semantics {
+                this.contentDescription = contentDescription
+                role = Role.Button
+            },
     ) {
         val strokeWidthPx = 1.6.dp.toPx()
         val halfWidth = size.minDimension * 0.18f
