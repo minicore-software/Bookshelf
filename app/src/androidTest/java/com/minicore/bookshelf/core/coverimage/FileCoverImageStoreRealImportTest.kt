@@ -9,6 +9,7 @@ import java.io.File
 import java.io.FileOutputStream
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -54,18 +55,45 @@ class FileCoverImageStoreRealImportTest {
         assertTrue(store.exists(draftRef))
     }
 
+    // Round 2: this only proves a MISSING source throws - decode fails before `FileOutputStream`
+    // even opens, so of course no partial file exists; it says nothing about the write-failure
+    // cleanup path. `assertThrows` now also asserts the exception TYPE, which the previous
+    // try/catch-and-ignore version never did.
     @Test
-    fun decodeFailure_leavesNoPartialDraftFile() = runBlocking {
+    fun decodeFailure_throwsCoverImportException_andLeavesNoPartialDraftFile() {
         val draftsDirBefore = File(context.cacheDir, CoverRefs.DRAFTS_DIR).apply { mkdirs() }
         val filesBefore = draftsDirBefore.listFiles()?.size ?: 0
 
-        try {
-            store.importDraft("file:///does/not/exist.jpg")
-        } catch (e: CoverImportException) {
-            // expected
+        assertThrows(CoverImportException::class.java) {
+            runBlocking { store.importDraft("file:///does/not/exist.jpg") }
         }
 
         val filesAfter = draftsDirBefore.listFiles()?.size ?: 0
+        assertTrue(filesAfter == filesBefore)
+    }
+
+    // Round 2: actually covers the write-failure cleanup path - decode and flatten succeed (a
+    // real, valid source), but `writeJpeg`'s `FileOutputStream` fails to open because the drafts
+    // directory itself has been made unwritable, forcing the one failure mode
+    // `decodeFailure_throwsCoverImportException_andLeavesNoPartialDraftFile` above cannot reach.
+    @Test
+    fun writeFailure_throwsCoverImportException_andLeavesNoPartialDraftFile() {
+        val draftsDir = File(context.cacheDir, CoverRefs.DRAFTS_DIR).apply { mkdirs() }
+        val filesBefore = draftsDir.listFiles()?.size ?: 0
+
+        assertTrue(
+            "test setup: could not make the drafts dir read-only",
+            draftsDir.setWritable(false, false),
+        )
+        try {
+            assertThrows(CoverImportException::class.java) {
+                runBlocking { store.importDraft(realJpegUri()) }
+            }
+        } finally {
+            draftsDir.setWritable(true, false)
+        }
+
+        val filesAfter = draftsDir.listFiles()?.size ?: 0
         assertTrue(filesAfter == filesBefore)
     }
 }
