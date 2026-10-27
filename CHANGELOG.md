@@ -116,6 +116,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   leaves an orphaned image or silently loses the picked photo. Saving
   shows "Added to your shelf" as a Snackbar back on the Library, every
   time a book is saved in the session. (#31)
+- View a book's details: tapping any Library card (grid, "Currently reading"
+  row, or "Lent out" row) now opens a read-only "Book" modal
+  (`BookDetailRoute`, a Navigation `dialog` destination reached only through
+  `navigateToBookDetail(bookId)`, `launchSingleTop` so a fast double tap opens
+  only one) showing the cover, title, an author/year line (hidden when both
+  are missing), a 1-5 star rating (an unset rating shows 5 empty outline
+  stars, distinct from 1 star), a 2-state "On the shelf"/"Lent out" status
+  pill derived only from whether the book has an open loan - never from its
+  reading status (`BookDao.observeLibraryBook`, `ObserveBookDetailUseCase`),
+  a quoted comment (hidden when none was written), an availability block
+  ("Lend it to a friend?" with a "Lend out" button when on the shelf, or the
+  borrower's name and due/overdue caption when lent out), and a Memory
+  section (Why/Where/Feeling, each showing "- not yet written -" when empty).
+  The modal updates live if the book is lent or returned while it's open, and
+  closes itself if the book is deleted from under it. Close, the X, the
+  scrim and system back all return to the Library. "Lend out" is a stubbed
+  no-op this epic (closes #32); "Edit" is wired to a `navigateToEditBook`
+  seam that does nothing yet - #33 builds the real screen.
 
 ### Changed
 - **Internal, no end-user-visible change:** extended the `books` table (Room

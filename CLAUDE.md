@@ -46,17 +46,24 @@ Layered MVVM + Repository, feature-first package structure:
 app/src/main/java/com/minicore/bookshelf/
  ├── BookshelfApp.kt        # @HiltAndroidApp Application
  ├── MainActivity.kt        # @AndroidEntryPoint, hosts the NavHost
- ├── navigation/            # BookshelfDestinations (routes), BookshelfNavGraph (NavHost)
+ ├── navigation/            # BookshelfDestinations (routes), BookshelfNavGraph (NavHost),
+ │                          # per-destination nav-seam files (AddBookNavigation,
+ │                          # BookDetailNavigation, EditBookNavigation - BOOKSHELF-0032's Edit
+ │                          # seam is a documented no-op until #33 registers the route)
  ├── features/
  │    ├── library/
  │    │    ├── ui/
  │    │    │    ├── addbook/   # AddBookRoute/AddBookViewModel/AddBookUiState (the manual "add
  │    │    │    │              # a book" sheet, BOOKSHELF-0031)
+ │    │    │    ├── bookdetail/ # BookDetailRoute/BookDetailViewModel/BookDetailUiState (the
+ │    │    │    │               # read-only "Book" modal, reached only via navigation/'s
+ │    │    │    │               # navigateToBookDetail - BOOKSHELF-0032)
  │    │    │    └── bookform/  # Stateless BookForm + its field composables (StarRatingInput,
  │    │    │                   # YearStepperField, CoverPicker) - never imports addbook/, so a
  │    │    │                   # future Edit screen can reuse it
  │    │    ├── domain/     # LibraryRepository contract, read models (LibraryBook, LentBook,
- │    │    │               # LibraryCounts, OpenLoan), use cases (incl. AddBookUseCase), BookDraft
+ │    │    │               # LibraryCounts, OpenLoan), use cases (incl. AddBookUseCase,
+ │    │    │               # ObserveBookDetailUseCase), BookDraft, BookDetail/BookDetailLoan
  │    │    └── data/       # RoomLibraryRepository (entity <-> domain mapping)
  │    ├── lending/
  │    │    ├── ui/         # Lend-a-book sheet, My Loans screen
