@@ -4,13 +4,17 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.minicore.bookshelf.features.library.domain.ObserveBookDetailUseCase
-import com.minicore.bookshelf.navigation.BookshelfDestinations
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+
+/** The `book/{bookId}` route argument name (plan #32 section 4.1) - duplicated here, not
+ * imported from `navigation/BookshelfDestinations`, so `ui/bookdetail/` stays referenced only
+ * from `navigation/` in the other direction (FF-V1) and never imports it back. */
+private const val KEY_BOOK_ID = "bookId"
 
 /**
  * Exposes the Book Detail modal's state (plan #32 decision V8). [bookId] is read once from
@@ -24,8 +28,8 @@ class BookDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
-    private val bookId: Long = checkNotNull(savedStateHandle[BookshelfDestinations.BookDetail.ARG_BOOK_ID]) {
-        "BookDetailViewModel requires a ${BookshelfDestinations.BookDetail.ARG_BOOK_ID} saved-state argument"
+    private val bookId: Long = checkNotNull(savedStateHandle[KEY_BOOK_ID]) {
+        "BookDetailViewModel requires a $KEY_BOOK_ID saved-state argument"
     }
 
     val uiState: StateFlow<BookDetailUiState> = observeBookDetail(bookId)
