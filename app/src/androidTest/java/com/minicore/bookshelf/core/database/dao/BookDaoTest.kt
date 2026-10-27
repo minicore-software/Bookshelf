@@ -13,10 +13,13 @@ import com.minicore.bookshelf.core.model.BookStatus
 import com.minicore.bookshelf.core.model.CoverPreset
 import java.time.Instant
 import java.time.LocalDate
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.yield
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -325,22 +328,29 @@ class BookDaoTest {
     }
 
     // F3/plan #32: the flow re-emits live when a loan is inserted, and again when it is returned.
+    // Room's invalidation-tracker re-query runs on a background dispatcher, so a fixed `yield()`
+    // count doesn't reliably wait for it (flaky, review round 1 critical finding) - collect into
+    // an unlimited Channel instead and block on each emission actually arriving.
     @Test
     fun observeLibraryBook_reEmits_whenLoanInsertedThenReturned() = runTest {
         val bookId = insertBook("Live Book", BookStatus.Reading, Instant.ofEpochMilli(1_000))
-        val results = mutableListOf<Boolean>()
-        val job = launch { database.bookDao().observeLibraryBook(bookId).collect { results.add(it?.openLoanId != null) } }
-        yield()
+        val emissions = Channel<Boolean>(Channel.UNLIMITED)
+        val job = launch {
+            database.bookDao().observeLibraryBook(bookId).collect { emissions.send(it?.openLoanId != null) }
+        }
+        suspend fun awaitNextEmission() = withContext(Dispatchers.Default) {
+            withTimeout(5_000) { emissions.receive() }
+        }
+
+        assertEquals(false, awaitNextEmission())
 
         val loanId = insertLoan(bookId, returnedAt = null)
-        yield()
+        assertEquals(true, awaitNextEmission())
 
         database.loanDao().markReturned(loanId, Instant.ofEpochMilli(9_000))
-        yield()
+        assertEquals(false, awaitNextEmission())
 
         job.cancel()
-
-        assertEquals(listOf(false, true, false), results)
     }
 
     // F6/AC1: update violating the invariant throws, the row is unchanged afterwards.
