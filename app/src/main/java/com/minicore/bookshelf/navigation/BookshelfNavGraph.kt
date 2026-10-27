@@ -90,7 +90,11 @@ fun BookshelfNavGraph(navController: NavHostController) {
             ),
         ) {
             BookDetailRoute(
-                onClose = { navController.popBackStack() },
+                // Pop this destination specifically, not just "whatever's on top": a
+                // NotFound-triggered auto-close (BookDetailRoute.kt) can race a user tap, and once
+                // #33 adds Edit above Detail a plain popBackStack() would pop the wrong entry
+                // (top suggestion, review round 1).
+                onClose = { navController.popBackStack(BookshelfDestinations.BookDetail.route, inclusive = true) },
                 onEditClick = { bookId -> navController.navigateToEditBook(bookId) },
                 onLendClick = {},
             )
