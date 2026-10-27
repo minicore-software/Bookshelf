@@ -11,7 +11,7 @@ import com.minicore.bookshelf.core.database.entity.LoanEntity
 
 @Database(
     entities = [BookEntity::class, LoanEntity::class],
-    version = 1,
+    version = 2,
     exportSchema = true
 )
 @TypeConverters(BookshelfConverters::class)

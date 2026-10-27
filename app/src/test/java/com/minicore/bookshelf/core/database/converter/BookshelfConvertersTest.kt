@@ -1,6 +1,7 @@
 package com.minicore.bookshelf.core.database.converter
 
 import com.minicore.bookshelf.core.model.BookStatus
+import com.minicore.bookshelf.core.model.CoverPreset
 import java.time.Instant
 import java.time.LocalDate
 import org.junit.Assert.assertEquals
@@ -68,5 +69,36 @@ class BookshelfConvertersTest {
     @Test(expected = IllegalArgumentException::class)
     fun bookStatus_throws_onUnknownStoredValue() {
         converters.stringToBookStatus("archived")
+    }
+
+    // FF-M4 (plan section 6): exact-literal pin, unknown -> null (plan S3), not a throw.
+    @Test
+    fun coverPreset_roundTrips_forAllValues() {
+        CoverPreset.entries.forEach { preset ->
+            val stored = converters.coverPresetToString(preset)
+            val restored = converters.stringToCoverPreset(stored)
+            assertEquals(preset, restored)
+        }
+    }
+
+    @Test
+    fun coverPreset_persistsAsStableLiterals_preset1Through6() {
+        assertEquals("preset_1", converters.coverPresetToString(CoverPreset.Preset1))
+        assertEquals("preset_2", converters.coverPresetToString(CoverPreset.Preset2))
+        assertEquals("preset_3", converters.coverPresetToString(CoverPreset.Preset3))
+        assertEquals("preset_4", converters.coverPresetToString(CoverPreset.Preset4))
+        assertEquals("preset_5", converters.coverPresetToString(CoverPreset.Preset5))
+        assertEquals("preset_6", converters.coverPresetToString(CoverPreset.Preset6))
+    }
+
+    @Test
+    fun coverPreset_nullRoundTrips_whenNull() {
+        assertNull(converters.coverPresetToString(null))
+        assertNull(converters.stringToCoverPreset(null))
+    }
+
+    @Test
+    fun coverPreset_returnsNull_onUnknownStoredValue() {
+        assertNull(converters.stringToCoverPreset("bogus"))
     }
 }

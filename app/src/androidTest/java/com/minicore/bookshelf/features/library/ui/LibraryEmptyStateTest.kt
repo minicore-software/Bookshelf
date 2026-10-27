@@ -31,6 +31,8 @@ import com.minicore.bookshelf.R
 import com.minicore.bookshelf.core.designsystem.BookshelfTheme
 import com.minicore.bookshelf.core.model.Book
 import com.minicore.bookshelf.core.model.BookStatus
+import com.minicore.bookshelf.core.model.Cover
+import com.minicore.bookshelf.core.model.CoverPreset
 import com.minicore.bookshelf.features.library.domain.LibraryFilter
 import com.minicore.bookshelf.features.library.domain.LibraryGrid
 import com.minicore.bookshelf.features.library.domain.LibraryRows
@@ -70,7 +72,7 @@ class LibraryEmptyStateTest {
         title = title,
         author = "Author",
         isbn = null,
-        coverUri = null,
+        cover = Cover.Preset(CoverPreset.forBookId(id)),
         genre = null,
         pageCount = null,
         publishedYear = null,

@@ -1,5 +1,6 @@
 package com.minicore.bookshelf.features.library.domain
 
+import com.minicore.bookshelf.core.model.Book
 import com.minicore.bookshelf.core.model.BookStatus
 import com.minicore.bookshelf.features.library.domain.model.LentBook
 import com.minicore.bookshelf.features.library.domain.model.LibraryBook
@@ -25,4 +26,13 @@ interface LibraryRepository {
 
     /** Chip badges. */
     fun observeCounts(): Flow<LibraryCounts>
+
+    /** Cold, re-emits on `books` changes for this [id]. Emits `null` when the id does not exist. */
+    fun observeBook(id: Long): Flow<Book?>
+
+    /** Requires `book.id == 0L`. Inserts with `ABORT` and returns the new id (plan section 4 S8). */
+    suspend fun addBook(book: Book): Long
+
+    /** `@Update` by id. `false` when the id does not exist. Never touches `loans` (plan S8). */
+    suspend fun updateBook(book: Book): Boolean
 }

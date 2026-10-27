@@ -164,7 +164,7 @@ private fun ReadingCard(book: Book, onClick: () -> Unit, modifier: Modifier = Mo
             .clickable(onClickLabel = clickLabel, role = Role.Button, onClick = onClick),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        BookCover(bookId = book.id, title = book.title, coverUri = book.coverUri)
+        BookCover(bookId = book.id, title = book.title, cover = book.cover)
     }
 }
 
@@ -179,7 +179,7 @@ private fun LentCard(row: LentOutRow, onClick: () -> Unit, modifier: Modifier = 
             .clickable(onClickLabel = clickLabel, role = Role.Button, onClick = onClick),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        BookCover(bookId = row.book.id, title = row.book.title, coverUri = row.book.coverUri, dimmed = true)
+        BookCover(bookId = row.book.id, title = row.book.title, cover = row.book.cover, dimmed = true)
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
                 text = stringResource(R.string.library_loan_borrower, row.borrowerName),

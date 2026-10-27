@@ -5,26 +5,66 @@ import com.minicore.bookshelf.core.database.dao.StatusCountRow
 import com.minicore.bookshelf.core.database.entity.BookEntity
 import com.minicore.bookshelf.core.model.Book
 import com.minicore.bookshelf.core.model.BookStatus
+import com.minicore.bookshelf.core.model.Cover
+import com.minicore.bookshelf.core.model.CoverPreset
 import com.minicore.bookshelf.features.library.domain.model.LentBook
 import com.minicore.bookshelf.features.library.domain.model.LibraryBook
 import com.minicore.bookshelf.features.library.domain.model.LibraryCounts
 import com.minicore.bookshelf.features.library.domain.model.OpenLoan
 
-/** Entity -> domain model mapping. Entities never leave `data` (plan section 5). */
+/**
+ * Entity -> domain model mapping. Entities never leave `data` (plan section 5). [Cover]
+ * resolution (plan section 4): an image wins if both are somehow set (the triggers prevent that
+ * state in practice), a stored preset is used when there is no image, and neither set (including
+ * an unknown/corrupt stored key, plan S3/R5) falls back to the id-derived preset.
+ */
 internal fun BookEntity.toDomain(): Book = Book(
     id = id,
     title = title,
     author = author,
     isbn = isbn,
-    coverUri = coverUri,
+    cover = toCover(),
     genre = genre,
     pageCount = pageCount,
     publishedYear = publishedYear,
     status = status,
     rating = rating,
     synopsis = synopsis,
+    comment = comment,
+    memoryWhy = memoryWhy,
+    memoryWhere = memoryWhere,
+    memoryWhat = memoryWhat,
     createdAt = createdAt,
 )
+
+private fun BookEntity.toCover(): Cover = when {
+    coverUri != null -> Cover.Image(coverUri)
+    coverColor != null -> Cover.Preset(coverColor)
+    else -> Cover.Preset(CoverPreset.forBookId(id))
+}
+
+/** Domain -> entity mapping (plan section 4 S7): blank optional text becomes `null`. */
+internal fun Book.toEntity(): BookEntity = BookEntity(
+    id = id,
+    title = title,
+    author = author,
+    isbn = isbn,
+    coverUri = (cover as? Cover.Image)?.uri,
+    coverColor = (cover as? Cover.Preset)?.preset,
+    genre = genre,
+    pageCount = pageCount,
+    publishedYear = publishedYear,
+    status = status,
+    rating = rating,
+    synopsis = synopsis,
+    comment = comment.blankToNull(),
+    memoryWhy = memoryWhy.blankToNull(),
+    memoryWhere = memoryWhere.blankToNull(),
+    memoryWhat = memoryWhat.blankToNull(),
+    createdAt = createdAt,
+)
+
+private fun String?.blankToNull(): String? = this?.takeIf { it.isNotBlank() }
 
 internal fun LibraryBookRow.toOpenLoan(): OpenLoan? {
     val loanId = openLoanId ?: return null

@@ -25,6 +25,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.minicore.bookshelf.core.designsystem.BookshelfTheme
 import com.minicore.bookshelf.core.designsystem.CoverColors
+import com.minicore.bookshelf.core.model.Cover
+import com.minicore.bookshelf.core.model.CoverPreset
 
 const val BOOK_COVER_TEST_TAG_PREFIX = "book_cover_"
 
@@ -39,13 +41,16 @@ enum class BookCoverVariant { Row, Grid }
 /**
  * The shared cover placeholder used by the Library rows ([com.minicore.bookshelf.features])
  * and, from #21, the library grid (plan R1/G9). Always draws a colour-block placeholder -
- * [coverUri] is accepted but **ignored**: image loading arrives with the first ticket that
- * writes a non-null `coverUri` (no book-creation UI exists yet, so none can). Imports nothing
- * from `features` (`LayeringTest`).
+ * [Cover.Image] is accepted but its `uri` is **ignored**: image loading is #31's decision
+ * (BOOKSHELF-0030 plan S6), so both an image and a preset currently draw a colour block. Imports
+ * nothing from `features` (`LayeringTest`).
  *
- * @param bookId used (not [title]) to pick the placeholder colour from a fixed six-colour
- *   palette via `Math.floorMod` (plan R2) - stable across renames, identical wherever the same
- *   book's cover is drawn.
+ * @param bookId used (not [title]) to pick the placeholder colour for a [Cover.Image] from a
+ *   fixed six-colour palette via `Math.floorMod` (plan R2) - stable across renames, identical
+ *   wherever the same book's cover is drawn. A [Cover.Preset] resolves to its own colour instead
+ *   (BOOKSHELF-0030 S6), through an exhaustive `when` on [CoverPreset], never ordinal/list
+ *   position.
+ * @param cover the book's [Cover.Image] or [Cover.Preset] (BOOKSHELF-0030).
  * @param dimmed `true` for a lent-out book: the whole cover (including the title) is drawn at
  *   55% opacity, exactly as mocked (plan D15). The title's contrast is reduced at that opacity;
  *   accepted, see plan section 12 (Q7). Only meaningful for [BookCoverVariant.Row] - the grid
@@ -59,13 +64,13 @@ enum class BookCoverVariant { Row, Grid }
 fun BookCover(
     bookId: Long,
     title: String,
-    coverUri: String?,
+    cover: Cover,
     modifier: Modifier = Modifier,
     dimmed: Boolean = false,
     variant: BookCoverVariant = BookCoverVariant.Row,
 ) {
     val palette = BookshelfTheme.extendedColors.coverPalette
-    val colors = coverColorsFor(bookId, palette)
+    val colors = coverColorsFor(bookId, cover, palette)
 
     when (variant) {
         BookCoverVariant.Row -> Surface(
@@ -105,9 +110,24 @@ fun BookCover(
     }
 }
 
-/** `Math.floorMod`, not title hashing: a rename must never change the colour (plan R2/Q4). */
-internal fun coverColorsFor(bookId: Long, palette: List<CoverColors>): CoverColors =
-    palette[Math.floorMod(bookId, palette.size.toLong()).toInt()]
+/**
+ * [Cover.Image] uses `Math.floorMod`, not title hashing: a rename must never change the colour
+ * (plan R2/Q4). [Cover.Preset] resolves through an exhaustive `when`, never ordinal/list position
+ * (BOOKSHELF-0030 S6) - the no-visible-change guarantee (plan S4) depends on this matching the
+ * same index the pre-#30 `floorMod` formula drew for every existing book.
+ */
+internal fun coverColorsFor(bookId: Long, cover: Cover, palette: List<CoverColors>): CoverColors =
+    when (cover) {
+        is Cover.Image -> palette[Math.floorMod(bookId, palette.size.toLong()).toInt()]
+        is Cover.Preset -> when (cover.preset) {
+            CoverPreset.Preset1 -> palette[0]
+            CoverPreset.Preset2 -> palette[1]
+            CoverPreset.Preset3 -> palette[2]
+            CoverPreset.Preset4 -> palette[3]
+            CoverPreset.Preset5 -> palette[4]
+            CoverPreset.Preset6 -> palette[5]
+        }
+    }
 
 @Preview(name = "BookCover — palette")
 @Composable
@@ -120,7 +140,7 @@ private fun BookCoverPalettePreview() {
                 .padding(8.dp),
         ) {
             for (id in 0L until 6L) {
-                BookCover(bookId = id, title = "Book $id: A Long Title", coverUri = null)
+                BookCover(bookId = id, title = "Book $id: A Long Title", cover = Cover.Preset(CoverPreset.forBookId(id)))
             }
         }
     }
@@ -131,7 +151,7 @@ private fun BookCoverPalettePreview() {
 private fun BookCoverDimmedPreview() {
     BookshelfTheme {
         Box(modifier = Modifier.background(MaterialTheme.colorScheme.background).padding(8.dp)) {
-            BookCover(bookId = 1, title = "A Lent Book", coverUri = null, dimmed = true)
+            BookCover(bookId = 1, title = "A Lent Book", cover = Cover.Preset(CoverPreset.forBookId(1)), dimmed = true)
         }
     }
 }
@@ -149,7 +169,7 @@ private fun BookCoverGridPreview() {
                     BookCover(
                         bookId = id,
                         title = "Book $id",
-                        coverUri = null,
+                        cover = Cover.Preset(CoverPreset.forBookId(id)),
                         variant = BookCoverVariant.Grid,
                     )
                 }

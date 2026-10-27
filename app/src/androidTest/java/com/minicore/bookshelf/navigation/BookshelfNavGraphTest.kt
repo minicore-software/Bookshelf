@@ -13,6 +13,8 @@ import com.minicore.bookshelf.core.designsystem.BookshelfTheme
 import com.minicore.bookshelf.performSemanticsClick
 import com.minicore.bookshelf.core.model.Book
 import com.minicore.bookshelf.core.model.BookStatus
+import com.minicore.bookshelf.core.model.Cover
+import com.minicore.bookshelf.core.model.CoverPreset
 import com.minicore.bookshelf.di.LibraryDataModule
 import com.minicore.bookshelf.features.library.domain.LibraryRepository
 import com.minicore.bookshelf.features.library.domain.model.LentBook
@@ -206,7 +208,7 @@ class BookshelfNavGraphTest {
         title = "Book $id",
         author = "Author",
         isbn = null,
-        coverUri = null,
+        cover = Cover.Preset(CoverPreset.forBookId(id)),
         genre = null,
         pageCount = null,
         publishedYear = null,
@@ -241,4 +243,10 @@ class FakeLibraryRepository @Inject constructor() : LibraryRepository {
             lentOut = lentBooks.size,
         )
     }
+
+    override fun observeBook(id: Long): Flow<Book?> = throw NotImplementedError()
+
+    override suspend fun addBook(book: Book): Long = throw NotImplementedError()
+
+    override suspend fun updateBook(book: Book): Boolean = throw NotImplementedError()
 }

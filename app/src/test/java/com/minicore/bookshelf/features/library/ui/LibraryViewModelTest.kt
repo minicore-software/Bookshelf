@@ -3,6 +3,8 @@ package com.minicore.bookshelf.features.library.ui
 import androidx.lifecycle.SavedStateHandle
 import com.minicore.bookshelf.core.model.Book
 import com.minicore.bookshelf.core.model.BookStatus
+import com.minicore.bookshelf.core.model.Cover
+import com.minicore.bookshelf.core.model.CoverPreset
 import com.minicore.bookshelf.features.library.domain.CurrentDateProvider
 import com.minicore.bookshelf.features.library.domain.LibraryFilter
 import com.minicore.bookshelf.features.library.domain.LibraryRepository
@@ -43,6 +45,12 @@ private class FakeLibraryRepository : LibraryRepository {
     override fun observeCurrentlyReading(): Flow<List<LibraryBook>> = reading
     override fun observeLentOutBooks(): Flow<List<LentBook>> = lent
     override fun observeCounts(): Flow<LibraryCounts> = counts
+
+    override fun observeBook(id: Long): Flow<Book?> = throw NotImplementedError()
+
+    override suspend fun addBook(book: Book): Long = throw NotImplementedError()
+
+    override suspend fun updateBook(book: Book): Boolean = throw NotImplementedError()
 }
 
 /** AC1/AC2 (plan FF2): [LibraryViewModel] starts [LibraryUiState.Loading], then [LibraryUiState.Content]. */
@@ -74,7 +82,7 @@ class LibraryViewModelTest {
         title = "Book $id",
         author = "Author",
         isbn = null,
-        coverUri = null,
+        cover = Cover.Preset(CoverPreset.forBookId(id)),
         genre = null,
         pageCount = null,
         publishedYear = null,

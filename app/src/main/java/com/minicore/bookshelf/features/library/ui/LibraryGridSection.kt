@@ -42,6 +42,8 @@ import com.minicore.bookshelf.core.designsystem.component.BookCover
 import com.minicore.bookshelf.core.designsystem.component.BookCoverVariant
 import com.minicore.bookshelf.core.model.Book
 import com.minicore.bookshelf.core.model.BookStatus
+import com.minicore.bookshelf.core.model.Cover
+import com.minicore.bookshelf.core.model.CoverPreset
 import com.minicore.bookshelf.features.library.domain.LibraryFilter
 import com.minicore.bookshelf.features.library.domain.countFor
 import com.minicore.bookshelf.features.library.domain.model.LibraryBook
@@ -196,7 +198,7 @@ fun LibraryGridCard(
             BookCover(
                 bookId = book.id,
                 title = book.title,
-                coverUri = book.coverUri,
+                cover = book.cover,
                 variant = BookCoverVariant.Grid,
             )
             LibraryStatusDot(
@@ -251,13 +253,17 @@ private fun previewBook(id: Long, title: String, status: BookStatus) = Book(
     title = title,
     author = "Author",
     isbn = null,
-    coverUri = null,
+    cover = Cover.Preset(CoverPreset.forBookId(id)),
     genre = null,
     pageCount = null,
     publishedYear = null,
     status = status,
     rating = null,
     synopsis = null,
+    comment = null,
+    memoryWhy = null,
+    memoryWhere = null,
+    memoryWhat = null,
     createdAt = Instant.EPOCH,
 )
 

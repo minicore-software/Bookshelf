@@ -2,6 +2,8 @@ package com.minicore.bookshelf.features.library.ui
 
 import com.minicore.bookshelf.core.model.Book
 import com.minicore.bookshelf.core.model.BookStatus
+import com.minicore.bookshelf.core.model.Cover
+import com.minicore.bookshelf.core.model.CoverPreset
 import com.minicore.bookshelf.features.library.domain.model.LibraryBook
 import com.minicore.bookshelf.features.library.domain.model.OpenLoan
 import java.time.Instant
@@ -14,7 +16,7 @@ private fun book(status: BookStatus) = Book(
     title = "A Book",
     author = "Author",
     isbn = null,
-    coverUri = null,
+    cover = Cover.Preset(CoverPreset.forBookId(1)),
     genre = null,
     pageCount = null,
     publishedYear = null,
