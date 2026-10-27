@@ -111,8 +111,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   immediately replace an image with no confirmation. `BookCover` now draws
   that stored image wherever a cover shows (library rows/grid), falling
   back to the id-derived colour placeholder while loading or on failure.
-  Saving shows "Added to your shelf" as a Snackbar back on the Library.
-  (#31)
+  An uploaded photo is only committed to storage after a successful save,
+  with the file rolled back if the database insert fails, so a retry never
+  leaves an orphaned image or silently loses the picked photo. Saving
+  shows "Added to your shelf" as a Snackbar back on the Library, every
+  time a book is saved in the session. (#31)
 
 ### Changed
 - **Internal, no end-user-visible change:** extended the `books` table (Room
