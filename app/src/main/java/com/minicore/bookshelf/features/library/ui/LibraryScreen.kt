@@ -60,8 +60,9 @@ private val FabMargin = 20.dp
  *   row alone is still hidden entirely rather than shown with no cards (plan R11/G5). When the
  *   library is not empty, the chip row, title and grid always show, even when the selected filter
  *   matches nothing (plan G5).
- * @param onBookClick a stub until Book Detail ships (epic #17 D18) - defaults to a no-op so
- *   previews and simple call sites do not need to pass one. Grid-card taps reuse it (plan G12).
+ * @param onBookClick navigates to Book Detail with the tapped book's id (BOOKSHELF-0032) -
+ *   defaults to a no-op so previews and simple call sites do not need to pass one. Grid-card taps
+ *   reuse it (plan G12).
  * @param onSeeAllLoansClick a stub until My Loans ships (epic #17 D19).
  * @param onFilterSelected called with the tapped chip's [LibraryFilter] - defaults to a no-op.
  * @param onAddBookClick a stub until Add Book ships (epic #17 D9) - defaults to a no-op.
