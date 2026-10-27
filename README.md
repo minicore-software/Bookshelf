@@ -18,6 +18,12 @@ It intentionally avoids enterprise-level overengineering while still keeping a s
 
 ---
 
+## 🗂 Issue Tracking
+
+Bookshelf tracks work via **GitHub Issues/Projects** — not Jira. Issue numbers map directly to branch/PR naming (e.g. issue #31 → `feature/BOOKSHELF-0031-...` → PR "Closes #31").
+
+---
+
 ## 🧱 Tech Stack
 
 See [CLAUDE.md](CLAUDE.md) for the full version table.
