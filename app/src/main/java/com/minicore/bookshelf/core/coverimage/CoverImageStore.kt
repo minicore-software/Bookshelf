@@ -29,6 +29,13 @@ interface CoverImageStore {
     /** Moves the draft into permanent storage. Returns the stored ref. */
     suspend fun commit(draftRef: String): String
 
+    /**
+     * Reverses [commit]: moves [storedRef] back to [draftRef] (F19). Used when a save fails
+     * *after* the cover was committed, so the retry - which still references the original draft
+     * ref - can succeed instead of finding neither file. Idempotent; never throws.
+     */
+    suspend fun uncommit(storedRef: String, draftRef: String)
+
     /** Idempotent; never throws. Also #34's cleanup hook when a book is removed. */
     suspend fun delete(storedRef: String)
 
