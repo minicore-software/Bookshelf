@@ -121,6 +121,34 @@ class BookDetailViewModelTest {
         job.cancel()
     }
 
+    // F18 (should): a ViewModel re-created against the same SavedStateHandle (simulating process
+    // death restore) reads the same bookId and reloads it, rather than defaulting/crashing.
+    @Test
+    fun recreatedWithSameSavedStateHandle_restoresSameBookId_andReloads() = runTest(dispatcher) {
+        val savedStateHandle = SavedStateHandle(mapOf("bookId" to 42L))
+        val useCase = ObserveBookDetailUseCase(repository, CurrentDateProvider(Provider { clock }))
+
+        val first = BookDetailViewModel(useCase, savedStateHandle)
+        val firstCollector = mutableListOf<BookDetailUiState>()
+        val firstJob = launch { first.uiState.collect { firstCollector.add(it) } }
+        repository.byId.value = LibraryBook(book(42), null)
+        dispatcher.scheduler.runCurrent()
+        assertTrue((firstCollector.last() as BookDetailUiState.Loaded).detail.book.id == 42L)
+        firstJob.cancel()
+
+        // Recreate: a brand new ViewModel instance against the *same* SavedStateHandle, as
+        // happens on process-death restore.
+        val recreated = BookDetailViewModel(useCase, savedStateHandle)
+        val recreatedCollector = mutableListOf<BookDetailUiState>()
+        val recreatedJob = launch { recreated.uiState.collect { recreatedCollector.add(it) } }
+        dispatcher.scheduler.runCurrent()
+
+        val loaded = recreatedCollector.last() as BookDetailUiState.Loaded
+        assertEquals(42L, loaded.detail.book.id)
+
+        recreatedJob.cancel()
+    }
+
     // QA risk "vanished book": a book present then deleted flips Loaded -> NotFound live.
     @Test
     fun bookDeletedWhileObserving_flipsFromLoadedToNotFound() = runTest(dispatcher) {
