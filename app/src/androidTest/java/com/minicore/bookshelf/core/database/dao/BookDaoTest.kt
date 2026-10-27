@@ -1,6 +1,7 @@
 package com.minicore.bookshelf.core.database.dao
 
 import android.content.Context
+import android.database.sqlite.SQLiteConstraintException
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -9,6 +10,7 @@ import com.minicore.bookshelf.core.database.applyBookshelfConfig
 import com.minicore.bookshelf.core.database.entity.BookEntity
 import com.minicore.bookshelf.core.database.entity.LoanEntity
 import com.minicore.bookshelf.core.model.BookStatus
+import com.minicore.bookshelf.core.model.CoverPreset
 import java.time.Instant
 import java.time.LocalDate
 import kotlinx.coroutines.flow.first
@@ -151,5 +153,152 @@ class BookDaoTest {
             it.moveToFirst()
             assertEquals(0, it.getInt(0))
         }
+    }
+
+    // F11/AC4: insert -> observeById round-trips all 5 new columns for a Preset book.
+    @Test
+    fun observeById_roundTripsNewColumns_forPresetBook() = runTest {
+        val id = database.bookDao().insert(
+            BookEntity(
+                title = "Preset Book",
+                author = "Author",
+                isbn = null,
+                coverUri = null,
+                genre = null,
+                pageCount = null,
+                publishedYear = null,
+                status = BookStatus.Reading,
+                rating = null,
+                synopsis = null,
+                comment = "Great read",
+                memoryWhy = "Gift from a friend",
+                memoryWhere = "Lisbon",
+                memoryWhat = "Finished it on a train",
+                coverColor = CoverPreset.Preset4,
+                createdAt = Instant.ofEpochMilli(1_000),
+            )
+        )
+
+        val restored = database.bookDao().observeById(id).first()
+
+        assertEquals("Great read", restored?.comment)
+        assertEquals("Gift from a friend", restored?.memoryWhy)
+        assertEquals("Lisbon", restored?.memoryWhere)
+        assertEquals("Finished it on a train", restored?.memoryWhat)
+        assertEquals(CoverPreset.Preset4, restored?.coverColor)
+        assertNull(restored?.coverUri)
+    }
+
+    // F18/AC4: insert -> observeById round-trips for an Image book too.
+    @Test
+    fun observeById_roundTripsNewColumns_forImageBook() = runTest {
+        val id = database.bookDao().insert(
+            BookEntity(
+                title = "Image Book",
+                author = "Author",
+                isbn = null,
+                coverUri = "content://covers/a.jpg",
+                genre = null,
+                pageCount = null,
+                publishedYear = null,
+                status = BookStatus.Reading,
+                rating = null,
+                synopsis = null,
+                createdAt = Instant.ofEpochMilli(1_000),
+            )
+        )
+
+        val restored = database.bookDao().observeById(id).first()
+
+        assertEquals("content://covers/a.jpg", restored?.coverUri)
+        assertNull(restored?.coverColor)
+    }
+
+    // F9/AC4: update on a nonexistent id returns 0, no throw.
+    @Test
+    fun update_onNonexistentId_returnsZero_withoutThrowing() = runTest {
+        val book = BookEntity(
+            id = 999,
+            title = "Ghost",
+            author = "Author",
+            isbn = null,
+            coverUri = null,
+            genre = null,
+            pageCount = null,
+            publishedYear = null,
+            status = BookStatus.Reading,
+            rating = null,
+            synopsis = null,
+            coverColor = CoverPreset.Preset1,
+            createdAt = Instant.ofEpochMilli(1_000),
+        )
+
+        val rowsAffected = database.bookDao().update(book)
+
+        assertEquals(0, rowsAffected)
+    }
+
+    // F8/AC4: update on a book with an open loan leaves the loan untouched (no REPLACE/cascade).
+    @Test
+    fun update_onBookWithOpenLoan_leavesLoanIntact() = runTest {
+        val bookId = insertBook("Lent Book", BookStatus.Reading, Instant.ofEpochMilli(1_000))
+        val loanId = insertLoan(bookId, returnedAt = null)
+
+        val original = database.bookDao().observeById(bookId).first()!!
+        val updated = original.copy(comment = "Updated comment")
+        val rowsAffected = database.bookDao().update(updated)
+
+        assertEquals(1, rowsAffected)
+        database.openHelper.readableDatabase
+            .query("SELECT COUNT(*) FROM loans WHERE id = $loanId AND book_id = $bookId AND returned_at IS NULL")
+            .use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertEquals(1, cursor.getInt(0))
+            }
+    }
+
+    // F5/AC1: insert violating the never-both-covers invariant throws, no row is written.
+    @Test(expected = SQLiteConstraintException::class)
+    fun insert_withBothCoverUriAndCoverColor_throwsAndWritesNoRow() = runTest {
+        try {
+            database.bookDao().insert(
+                BookEntity(
+                    title = "Invalid",
+                    author = "Author",
+                    isbn = null,
+                    coverUri = "content://covers/a.jpg",
+                    genre = null,
+                    pageCount = null,
+                    publishedYear = null,
+                    status = BookStatus.Reading,
+                    rating = null,
+                    synopsis = null,
+                    coverColor = CoverPreset.Preset1,
+                    createdAt = Instant.ofEpochMilli(1_000),
+                )
+            )
+        } finally {
+            val rows = database.bookDao().observeLibraryBooks(null).first()
+            assertTrue(rows.none { it.book.title == "Invalid" })
+        }
+    }
+
+    // F6/AC1: update violating the invariant throws, the row is unchanged afterwards.
+    @Test
+    fun update_withBothCoverUriAndCoverColor_throwsAndLeavesRowUnchanged() = runTest {
+        val bookId = insertBook("Valid", BookStatus.Reading, Instant.ofEpochMilli(1_000))
+        val original = database.bookDao().observeById(bookId).first()!!
+
+        try {
+            database.bookDao().update(
+                original.copy(coverUri = "content://covers/a.jpg", coverColor = CoverPreset.Preset2)
+            )
+            throw AssertionError("expected SQLiteConstraintException")
+        } catch (expected: SQLiteConstraintException) {
+            // expected
+        }
+
+        val afterFailedUpdate = database.bookDao().observeById(bookId).first()
+        assertEquals(original, afterFailedUpdate)
     }
 }
