@@ -165,9 +165,9 @@ class BookshelfNavGraphTest {
     fun tappingALentCard_navigatesToBookDetail_withCorrectId() {
         val repo = fakeRepository as FakeLibraryRepository
         val lentBook = book(id = 2, status = BookStatus.Reading)
-        repo.lent.value = listOf(
-            LentBook(lentBook, OpenLoan(1, "Priya", Instant.EPOCH, LocalDate.now().plusDays(3))),
-        )
+        val openLoan = OpenLoan(1, "Priya", Instant.EPOCH, LocalDate.now().plusDays(3))
+        repo.lent.value = listOf(LentBook(lentBook, openLoan))
+        repo.allBooks.value = listOf(LibraryBook(lentBook, openLoan))
 
         lateinit var navController: TestNavHostController
         composeRule.setContent {
