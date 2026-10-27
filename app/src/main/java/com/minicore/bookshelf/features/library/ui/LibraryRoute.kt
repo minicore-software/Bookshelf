@@ -18,8 +18,13 @@ import com.minicore.bookshelf.R
  *   save, else `null` - `navigation/BookshelfNavGraph.kt` is the only place that knows *why* (it
  *   never passes an `AddBookResult` down here, keeping this route free of any `ui.addbook`
  *   import, `FF-A4`). A fresh id every save makes the [LaunchedEffect] below naturally one-shot
- *   per save - unlike a `Boolean`, nothing needs to (or may) reset this value afterwards, which
- *   previously raced with and cancelled the Snackbar mid-flight (critical finding #5).
+ *   per save - unlike a `Boolean`, nothing needs to (or may) reset this value *before* the
+ *   Snackbar is shown, which previously raced with and cancelled the Snackbar mid-flight
+ *   (critical finding #5). It must, however, be cleared *after* the Snackbar has shown via
+ *   [onBookAddedSnackbarShown], else an Activity recreation (rotation/config-change/process-death
+ *   restore) replays the same non-null id and reshows the Snackbar (critical finding round 2).
+ * @param onBookAddedSnackbarShown Invoked once the "added to your shelf" Snackbar has been shown
+ *   for [bookAddedEventId], so the caller can clear the underlying saved-state value.
  */
 @Composable
 fun LibraryRoute(
@@ -29,6 +34,7 @@ fun LibraryRoute(
     onAddBookClick: () -> Unit,
     modifier: Modifier = Modifier,
     bookAddedEventId: Long? = null,
+    onBookAddedSnackbarShown: () -> Unit = {},
     viewModel: LibraryViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -36,7 +42,10 @@ fun LibraryRoute(
     val bookAddedMessage = stringResource(R.string.add_book_added_snackbar)
 
     LaunchedEffect(bookAddedEventId) {
-        if (bookAddedEventId != null) snackbarHostState.showSnackbar(bookAddedMessage)
+        if (bookAddedEventId != null) {
+            snackbarHostState.showSnackbar(bookAddedMessage)
+            onBookAddedSnackbarShown()
+        }
     }
 
     LibraryScreen(

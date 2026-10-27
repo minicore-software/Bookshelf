@@ -1,9 +1,16 @@
 package com.minicore.bookshelf.navigation
 
+import android.os.Bundle
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.test.SemanticsNodeInteractionCollection
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -22,6 +29,7 @@ import com.minicore.bookshelf.core.designsystem.BookshelfTheme
 import com.minicore.bookshelf.di.DatabaseModule
 import com.minicore.bookshelf.features.library.ui.LIBRARY_ADD_BOOK_FAB_TEST_TAG
 import com.minicore.bookshelf.features.library.ui.addbook.ADD_BOOK_SAVE_BUTTON_TEST_TAG
+import com.minicore.bookshelf.features.library.ui.addbook.ADD_BOOK_SCRIM_TEST_TAG
 import com.minicore.bookshelf.features.library.ui.addbook.ADD_BOOK_SHEET_TEST_TAG
 import com.minicore.bookshelf.features.library.ui.bookform.BOOK_FORM_TITLE_FIELD_TEST_TAG
 import dagger.Module
@@ -124,6 +132,81 @@ class AddBookEndToEndTest {
         composeRule.onNodeWithText("New book").performClick()
 
         composeRule.onNodeWithTag(ADD_BOOK_SHEET_TEST_TAG).assertIsDisplayed()
+    }
+
+    // Top suggestion #1 (round 2): `clearAndSetSemantics {}` must sit *before* (outside)
+    // `.clickable(...)` in the scrim's modifier chain - reversing that order lets Compose's
+    // inner-to-outer semantics walk re-apply the clickable's own `onClick` action on top of the
+    // clear, leaving a full-screen unlabeled TalkBack stop that still dismisses the sheet. Proven
+    // directly on the merged (default) semantics tree, not by indirect dismiss behavior.
+    @Test
+    fun scrim_hasNoClickActionInTheAccessibilityTree() {
+        setContent()
+
+        composeRule.onNodeWithTag(LIBRARY_ADD_BOOK_FAB_TEST_TAG).performClick()
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            allNodesWithTag(ADD_BOOK_SHEET_TEST_TAG).fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+        }
+
+        composeRule.onNodeWithTag(ADD_BOOK_SCRIM_TEST_TAG).assert(!hasClickAction())
+    }
+
+    // Critical finding (round 2): `KEY_BOOK_ADDED` must be removed from the previous back stack
+    // entry's `SavedStateHandle` only AFTER the Snackbar has shown - never left behind - else
+    // Activity recreation (rotation/config-change/process-death restore) replays the same
+    // non-null id via `getStateFlow` and reshows "Added to your shelf" forever. A full Activity
+    // destroy+recreate isn't exercisable against `HiltTestActivity` here (it has no `onCreate`
+    // that re-applies `composeRule.setContent`, unlike a real `ComponentActivity`), so this
+    // simulates the same mechanism `NavHostController` itself relies on to survive recreation:
+    // serializing the whole back stack (including every entry's `SavedStateHandle`) to a
+    // `Bundle` via `saveState()`, then handing that `Bundle` to a brand new controller via
+    // `restoreState()` before composing the graph again from scratch.
+    @Test
+    fun savingABook_doesNotReshowAddedSnackbar_afterSimulatedRecreate() {
+        val generation = mutableStateOf(0)
+        var savedNavState: Bundle? = null
+        lateinit var currentController: TestNavHostController
+
+        composeRule.setContent {
+            key(generation.value) {
+                currentController = remember(generation.value) {
+                    TestNavHostController(InstrumentationRegistry.getInstrumentation().targetContext).apply {
+                        navigatorProvider.addNavigator(ComposeNavigator())
+                        savedNavState?.let { restoreState(it) }
+                    }
+                }
+                BookshelfTheme {
+                    BookshelfNavGraph(currentController)
+                }
+            }
+        }
+
+        composeRule.onNodeWithTag(LIBRARY_ADD_BOOK_FAB_TEST_TAG).performClick()
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            allNodesWithTag(ADD_BOOK_SHEET_TEST_TAG).fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+        }
+
+        composeRule.onNodeWithTag(BOOK_FORM_TITLE_FIELD_TEST_TAG).performTextInput("Dune")
+        composeRule.onNodeWithTag(ADD_BOOK_SAVE_BUTTON_TEST_TAG).performClick()
+
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            allNodesWithTag(ADD_BOOK_SHEET_TEST_TAG).fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
+        }
+        composeRule.onNodeWithText("Added to your shelf").assertIsDisplayed()
+
+        // Let the Snackbar finish being shown - and the fix's `onBookAddedSnackbarShown` clear
+        // the saved-state entry - before "recreating".
+        composeRule.waitUntil(timeoutMillis = 8_000) {
+            composeRule.onAllNodesWithText("Added to your shelf")
+                .fetchSemanticsNodes(atLeastOneRootRequired = false)
+                .isEmpty()
+        }
+
+        savedNavState = currentController.saveState()
+        generation.value++
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText("Added to your shelf").assertDoesNotExist()
     }
 
     private object TestDatabaseHolder {
