@@ -135,18 +135,32 @@ class AddBookViewModel @Inject constructor(
         }
     }
 
-    /** `null` means the picker was cancelled: nothing changes (plan #31 section 4.2). */
+    /**
+     * `null` means the picker was cancelled: nothing changes (plan #31 section 4.2).
+     *
+     * On failure, the cover is left exactly as it is *at completion time* - never force-reset to
+     * a `previous` snapshot taken when the import started, which could silently clobber a preset
+     * the user picked while the import was still in flight. On success, the new image is only
+     * applied if the cover is still what it was when the import started; otherwise the user has
+     * since made a different choice, so the freshly imported (now orphaned) draft is discarded
+     * instead of being applied or leaked.
+     */
     fun onImagePicked(sourceUri: String?) {
         if (sourceUri == null) return
-        val previous = _uiState.value.cover
+        val coverBeforeImport = _uiState.value.cover
         update { it.copy(isImportingImage = true, error = null) }
         viewModelScope.launch {
             try {
                 val ref = coverImages.importDraft(sourceUri)
-                update { it.copy(cover = CoverDraft.Image(ref), isImportingImage = false) }
-                if (previous is CoverDraft.Image) coverImages.discardDraft(previous.draftRef)
+                if (_uiState.value.cover == coverBeforeImport) {
+                    update { it.copy(cover = CoverDraft.Image(ref), isImportingImage = false) }
+                    if (coverBeforeImport is CoverDraft.Image) coverImages.discardDraft(coverBeforeImport.draftRef)
+                } else {
+                    update { it.copy(isImportingImage = false) }
+                    coverImages.discardDraft(ref)
+                }
             } catch (e: CoverImportException) {
-                update { it.copy(cover = previous, isImportingImage = false, error = AddBookError.ImageImportFailed) }
+                update { it.copy(isImportingImage = false, error = AddBookError.ImageImportFailed) }
             }
         }
     }
@@ -173,10 +187,18 @@ class AddBookViewModel @Inject constructor(
         }
     }
 
-    /** A9: every exit path (Cancel, X, back, scrim) routes here. Ignored while saving. */
+    private var hasRequestedDismiss = false
+
+    /**
+     * A9: every exit path (Cancel, X, back, scrim) routes here. Ignored while saving, and
+     * single-flight like [onSave] (mirrors `isSaving`'s guard): two dismiss taps in the same
+     * frame - before the first's `popBackStack` takes effect - must not both send
+     * [AddBookResult.Cancelled] and risk popping the back stack twice.
+     */
     fun onDismissRequest() {
         val state = _uiState.value
-        if (state.isSaving) return
+        if (state.isSaving || hasRequestedDismiss) return
+        hasRequestedDismiss = true
         val cover = state.cover
         if (cover is CoverDraft.Image) {
             viewModelScope.launch { coverImages.discardDraft(cover.draftRef) }
