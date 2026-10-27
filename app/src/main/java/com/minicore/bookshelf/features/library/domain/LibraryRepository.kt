@@ -30,6 +30,13 @@ interface LibraryRepository {
     /** Cold, re-emits on `books` changes for this [id]. Emits `null` when the id does not exist. */
     fun observeBook(id: Long): Flow<Book?>
 
+    /**
+     * Cold, re-emits on `books`/`loans` changes for this [id] (plan #32 decision V3) - the Book
+     * Detail modal's open-loan overlay, via the same one-LEFT-JOIN pattern [observeBooks] uses.
+     * Emits `null` when the id does not exist.
+     */
+    fun observeLibraryBook(id: Long): Flow<LibraryBook?>
+
     /** Requires `book.id == 0L`. Inserts with `ABORT` and returns the new id (plan section 4 S8). */
     suspend fun addBook(book: Book): Long
 

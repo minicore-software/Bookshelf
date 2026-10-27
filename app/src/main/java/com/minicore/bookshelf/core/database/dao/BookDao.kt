@@ -42,6 +42,22 @@ interface BookDao {
     )
     fun observeLibraryBooks(status: BookStatus?): Flow<List<LibraryBookRow>>
 
+    /**
+     * Same projection and LEFT JOIN as [observeLibraryBooks], scoped to one book (plan #32
+     * decision V3). Emits `null` when [id] does not exist (QA F1/F17 - a book deleted while its
+     * detail modal is open).
+     */
+    @Query(
+        """
+        SELECT b.*, l.id AS open_loan_id, l.borrower_name AS open_loan_borrower_name,
+               l.loaned_at AS open_loan_loaned_at, l.due_at AS open_loan_due_at
+        FROM books AS b
+        LEFT JOIN loans AS l ON l.book_id = b.id AND l.returned_at IS NULL
+        WHERE b.id = :id
+        """
+    )
+    fun observeLibraryBook(id: Long): Flow<LibraryBookRow?>
+
     @Query(
         """
         SELECT b.*, l.id AS open_loan_id, l.borrower_name AS open_loan_borrower_name,

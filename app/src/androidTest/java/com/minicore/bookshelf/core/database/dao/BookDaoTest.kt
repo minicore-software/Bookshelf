@@ -14,7 +14,9 @@ import com.minicore.bookshelf.core.model.CoverPreset
 import java.time.Instant
 import java.time.LocalDate
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.yield
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -281,6 +283,64 @@ class BookDaoTest {
             val rows = database.bookDao().observeLibraryBooks(null).first()
             assertTrue(rows.none { it.book.title == "Invalid" })
         }
+    }
+
+    // F1/plan #32: observeLibraryBook on an unknown id emits null.
+    @Test
+    fun observeLibraryBook_unknownId_emitsNull() = runTest {
+        assertNull(database.bookDao().observeLibraryBook(999).first())
+    }
+
+    // F2/plan #32: no loan -> openLoanId null; open loan -> populated; only a returned loan ->
+    // null loan overlay (the LEFT JOIN condition excludes it).
+    @Test
+    fun observeLibraryBook_noLoan_hasNullOpenLoanId() = runTest {
+        val bookId = insertBook("No Loan", BookStatus.Reading, Instant.ofEpochMilli(1_000))
+
+        val row = database.bookDao().observeLibraryBook(bookId).first()
+
+        assertEquals(bookId, row?.book?.id)
+        assertNull(row?.openLoanId)
+    }
+
+    @Test
+    fun observeLibraryBook_withOpenLoan_isPopulated() = runTest {
+        val bookId = insertBook("With Loan", BookStatus.Reading, Instant.ofEpochMilli(1_000))
+        insertLoan(bookId, returnedAt = null)
+
+        val row = database.bookDao().observeLibraryBook(bookId).first()
+
+        assertEquals("Borrower", row?.openLoanBorrowerName)
+    }
+
+    @Test
+    fun observeLibraryBook_withOnlyAReturnedLoan_hasNullOpenLoanId() = runTest {
+        val bookId = insertBook("Returned Loan", BookStatus.Reading, Instant.ofEpochMilli(1_000))
+        insertLoan(bookId, returnedAt = Instant.ofEpochMilli(5_000))
+
+        val row = database.bookDao().observeLibraryBook(bookId).first()
+
+        assertEquals(bookId, row?.book?.id)
+        assertNull(row?.openLoanId)
+    }
+
+    // F3/plan #32: the flow re-emits live when a loan is inserted, and again when it is returned.
+    @Test
+    fun observeLibraryBook_reEmits_whenLoanInsertedThenReturned() = runTest {
+        val bookId = insertBook("Live Book", BookStatus.Reading, Instant.ofEpochMilli(1_000))
+        val results = mutableListOf<Boolean>()
+        val job = launch { database.bookDao().observeLibraryBook(bookId).collect { results.add(it?.openLoanId != null) } }
+        yield()
+
+        val loanId = insertLoan(bookId, returnedAt = null)
+        yield()
+
+        database.loanDao().markReturned(loanId, Instant.ofEpochMilli(9_000))
+        yield()
+
+        job.cancel()
+
+        assertEquals(listOf(false, true, false), results)
     }
 
     // F6/AC1: update violating the invariant throws, the row is unchanged afterwards.

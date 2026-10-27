@@ -55,6 +55,7 @@ private class FakeLibraryRepository : LibraryRepository {
         MutableStateFlow(LibraryCounts(0, 0, 0, 0, 0))
 
     override fun observeBook(id: Long): Flow<Book?> = throw NotImplementedError()
+    override fun observeLibraryBook(id: Long): Flow<LibraryBook?> = throw NotImplementedError()
 
     override suspend fun addBook(book: Book): Long = throw NotImplementedError()
 
