@@ -4,6 +4,7 @@ import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.isSelectable
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import com.minicore.bookshelf.core.designsystem.BookshelfTheme
@@ -34,6 +35,15 @@ class StarRatingInputA11yTest {
         // of its 5 stars (which would make this a 6-stop control for TalkBack).
         composeRule.onAllNodes(hasStateDescription).assertCountEquals(1)
 
+        // Round 2: the previous assertions above would also pass on the pre-fix code, since a
+        // plain `selectable` never set `stateDescription` in the first place and the custom
+        // actions were already attached to the Row before `clearAndSetSemantics` existed. What
+        // actually proves `clearAndSetSemantics` removed the 5 star children from the
+        // accessibility tree is that none of them - nor any `selectable` node - are reachable in
+        // the default MERGED semantics tree (no `useUnmergedTree`).
+        composeRule.onNodeWithTag(STAR_RATING_STAR_TEST_TAG_PREFIX + 1).assertDoesNotExist()
+        composeRule.onAllNodes(isSelectable()).assertCountEquals(0)
+
         val node = composeRule.onNodeWithTag(STAR_RATING_INPUT_TEST_TAG).fetchSemanticsNode()
         assertEquals("No rating", node.config[SemanticsProperties.StateDescription])
         assertEquals("Rating", node.config[SemanticsProperties.ContentDescription].first())
@@ -51,6 +61,11 @@ class StarRatingInputA11yTest {
         }
 
         composeRule.onAllNodes(hasStateDescription).assertCountEquals(1)
+
+        // Round 2: same gap as the unset-rating test above - prove the children are actually gone
+        // from the merged tree, not just that the Row carries a stateDescription.
+        composeRule.onNodeWithTag(STAR_RATING_STAR_TEST_TAG_PREFIX + 1).assertDoesNotExist()
+        composeRule.onAllNodes(isSelectable()).assertCountEquals(0)
 
         val node = composeRule.onNodeWithTag(STAR_RATING_INPUT_TEST_TAG).fetchSemanticsNode()
         assertEquals("3 of 5 stars", node.config[SemanticsProperties.StateDescription])
