@@ -9,7 +9,11 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.minicore.bookshelf.core.database.BookshelfDatabase
 import com.minicore.bookshelf.core.database.applyBookshelfConfig
 import com.minicore.bookshelf.core.database.converter.BookshelfConverters
+import com.minicore.bookshelf.core.model.Cover
 import com.minicore.bookshelf.core.model.CoverPreset
+import com.minicore.bookshelf.features.library.data.toLibraryBook
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -91,25 +95,54 @@ class BookshelfMigration1To2Test {
 
         val v2 = helper.runMigrationsAndValidate(TEST_DB, 2, true, MIGRATION_1_2)
 
-        // v1 columns byte-identical for every row.
-        v2.query("SELECT id, title, author, isbn, cover_uri, genre, page_count, published_year, status, rating, synopsis FROM books ORDER BY id")
-            .use { cursor ->
-                val expectedCount = 8
-                var actualCount = 0
-                while (cursor.moveToNext()) {
-                    actualCount++
-                    val id = cursor.getLong(0)
-                    assertEquals("Book $id", cursor.getString(1))
-                    assertEquals("Author $id", cursor.getString(2))
+        // v1 columns byte-identical for every row: every selected column asserted against the
+        // seed values, not just title/author.
+        val expectedStatus = mapOf(
+            1L to "want_to_read", 2L to "reading", 3L to "finished", 4L to "want_to_read",
+            5L to "reading", 6L to "finished", 7L to "want_to_read", 8L to "reading",
+        )
+        v2.query(
+            "SELECT id, title, author, isbn, cover_uri, genre, page_count, published_year, " +
+                "status, rating, synopsis, created_at FROM books ORDER BY id"
+        ).use { cursor ->
+            val expectedCount = 8
+            var actualCount = 0
+            while (cursor.moveToNext()) {
+                actualCount++
+                val id = cursor.getLong(0)
+                assertEquals("Book $id", cursor.getString(1))
+                assertEquals("Author $id", cursor.getString(2))
+                if (id == 7L) {
+                    // id 7: all-fields-set.
+                    assertEquals("isbn-$id", cursor.getString(3))
+                    assertEquals("Genre", cursor.getString(5))
+                    assertEquals(200L, cursor.getLong(6))
+                    assertEquals(2020L, cursor.getLong(7))
+                    assertEquals(5L, cursor.getLong(9))
+                    assertEquals("Synopsis", cursor.getString(10))
+                } else {
+                    assertTrue("isbn should be NULL for id $id", cursor.isNull(3))
+                    assertTrue("genre should be NULL for id $id", cursor.isNull(5))
+                    assertTrue("page_count should be NULL for id $id", cursor.isNull(6))
+                    assertTrue("published_year should be NULL for id $id", cursor.isNull(7))
+                    assertTrue("rating should be NULL for id $id", cursor.isNull(9))
+                    assertTrue("synopsis should be NULL for id $id", cursor.isNull(10))
                 }
-                assertEquals(expectedCount, actualCount)
+                if (id == 3L) {
+                    assertEquals("content://covers/3.jpg", cursor.getString(4))
+                } else {
+                    assertTrue("cover_uri should be NULL for id $id", cursor.isNull(4))
+                }
+                assertEquals(expectedStatus.getValue(id), cursor.getString(8))
+                assertEquals(id, cursor.getLong(11))
             }
+            assertEquals(expectedCount, actualCount)
+        }
 
-        // The cover_uri row keeps its URI, cover_color stays NULL for it.
-        v2.query("SELECT cover_uri, cover_color FROM books WHERE id = 3").use { cursor ->
+        // The cover_uri row (id 3) keeps its URI and never gets a backfilled cover_color.
+        v2.query("SELECT cover_color FROM books WHERE id = 3").use { cursor ->
             assertTrue(cursor.moveToFirst())
-            assertEquals("content://covers/3.jpg", cursor.getString(0))
-            assertTrue(cursor.isNull(1))
+            assertTrue(cursor.isNull(0))
         }
 
         // The four new text columns are NULL for every row (no row had them before #30).
@@ -147,6 +180,26 @@ class BookshelfMigration1To2Test {
             assertEquals(50000L, cursor.getLong(3))
         }
 
+        // F4: the MIGRATION itself (not just applyBookshelfConfig()'s onOpen callback, which
+        // would mask a deleted createTriggers(db) call in MIGRATION_1_2) creates the
+        // both-covers-forbidden triggers.
+        v2.query("SELECT name FROM sqlite_master WHERE type = 'trigger'").use { cursor ->
+            val triggerNames = generateSequence { if (cursor.moveToNext()) cursor.getString(0) else null }.toSet()
+            assertTrue(triggerNames.contains("books_single_cover_insert"))
+            assertTrue(triggerNames.contains("books_single_cover_update"))
+        }
+
+        // The migration-created trigger actually enforces the invariant on this connection.
+        try {
+            v2.execSQL(
+                "INSERT INTO books (id, title, author, status, created_at, cover_uri, cover_color) " +
+                    "VALUES (100, 'Bad', 'Author', 'want_to_read', 100, 'content://covers/100.jpg', 'preset_1')"
+            )
+            org.junit.Assert.fail("expected SQLiteConstraintException for both cover_uri and cover_color set")
+        } catch (expected: android.database.sqlite.SQLiteConstraintException) {
+            // expected: the trigger created by the migration itself raised ABORT.
+        }
+
         v2.close()
     }
 
@@ -177,6 +230,22 @@ class BookshelfMigration1To2Test {
                 assertTrue(triggerNames.contains("books_single_cover_insert"))
                 assertTrue(triggerNames.contains("books_single_cover_update"))
             }
+
+            // Covers resolve correctly: the image wins for id 3, every other id falls back to
+            // its id-derived preset (backfilled by the migration). The open loan on book 1 is
+            // present in the result.
+            val libraryBooks = runBlocking { db.bookDao().observeLibraryBooks(null).first() }
+                .map { it.toLibraryBook() }
+            val byId = libraryBooks.associateBy { it.book.id }
+            assertEquals(8, libraryBooks.size)
+            assertEquals(Cover.Image("content://covers/3.jpg"), byId.getValue(3L).book.cover)
+            for (id in setOf(1L, 2L, 4L, 5L, 6L, 7L, 8L)) {
+                assertEquals(Cover.Preset(CoverPreset.forBookId(id)), byId.getValue(id).book.cover)
+            }
+            val openLoan = byId.getValue(1L).openLoan
+            assertTrue("book 1 should have its open loan resolved", openLoan != null)
+            assertEquals("Jamie", openLoan?.borrowerName)
+            assertTrue("book 2's loan is returned, should have no open loan", byId.getValue(2L).openLoan == null)
         } finally {
             db.close()
             context.deleteDatabase(TEST_DB)
