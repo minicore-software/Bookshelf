@@ -42,4 +42,8 @@ interface LibraryRepository {
 
     /** `@Update` by id. `false` when the id does not exist. Never touches `loans` (plan S8). */
     suspend fun updateBook(book: Book): Boolean
+
+    /** Deletes the book row; its loans go with it via the FK cascade (ADR-001). `false` when the
+     * id does not exist (plan #34 section 4.1). */
+    suspend fun removeBook(id: Long): Boolean
 }

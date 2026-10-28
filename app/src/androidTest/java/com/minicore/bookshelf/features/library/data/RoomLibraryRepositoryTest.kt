@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -213,6 +214,42 @@ class RoomLibraryRepositoryTest {
             dueAt = LocalDate.of(2026, 11, 1),
         )
         assertEquals(expectedOpenLoan, detail?.openLoan)
+    }
+
+    // AC3/plan #34 D1-D4: removeBook cascades to every one of its loans, returned and open
+    // alike, in the same DELETE (the FK cascade, ADR-001) - another book and its own loan are
+    // untouched.
+    @Test
+    fun removeBook_cascadesToAllItsLoans_leavesOtherBooksUntouched() = runTest {
+        val bookA = insertBook("A", BookStatus.Reading, 1_000)
+        insertOpenLoan(bookA, borrowerName = "Returned already").let { loanId ->
+            database.loanDao().markReturned(loanId, Instant.ofEpochMilli(2_000))
+        }
+        insertOpenLoan(bookA, borrowerName = "Still open")
+        val bookB = insertBook("B", BookStatus.Reading, 3_000)
+        insertOpenLoan(bookB, borrowerName = "Unrelated")
+
+        val removed = repository.removeBook(bookA)
+
+        assertTrue(removed)
+        assertNull(repository.observeBook(bookA).first())
+        val loansForA = countLoansForBook(bookA)
+        assertEquals(0, loansForA)
+        assertEquals(bookB, repository.observeBook(bookB).first()?.id)
+        assertEquals(1, countLoansForBook(bookB))
+    }
+
+    // D8: removeBook on a missing id returns false.
+    @Test
+    fun removeBook_onMissingId_returnsFalse() = runTest {
+        assertFalse(repository.removeBook(999L))
+    }
+
+    private suspend fun countLoansForBook(bookId: Long): Int {
+        database.openHelper.readableDatabase.query("SELECT COUNT(*) FROM loans WHERE book_id = $bookId").use { cursor ->
+            cursor.moveToFirst()
+            return cursor.getInt(0)
+        }
     }
 
     // F7/R5: a corrupt stored cover_color resolves to the id-derived preset through the mapper,

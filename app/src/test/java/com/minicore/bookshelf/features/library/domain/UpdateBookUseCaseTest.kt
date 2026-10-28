@@ -65,6 +65,7 @@ private class UpdateBookFakeLibraryRepository(initial: Book?) : LibraryRepositor
     override fun observeBook(id: Long): Flow<Book?> = MutableStateFlow(row)
     override fun observeLibraryBook(id: Long): Flow<LibraryBook?> = MutableStateFlow(null)
     override suspend fun addBook(book: Book): Long = throw NotImplementedError()
+    override suspend fun removeBook(id: Long): Boolean = throw NotImplementedError()
 
     override suspend fun updateBook(book: Book): Boolean {
         updateCallCount++

@@ -68,6 +68,7 @@ private class RecordingLibraryRepository : LibraryRepository {
     override suspend fun addBook(book: Book): Long = throw NotImplementedError()
 
     override suspend fun updateBook(book: Book): Boolean = throw NotImplementedError()
+    override suspend fun removeBook(id: Long): Boolean = throw NotImplementedError()
 }
 
 /** AC1/AC2, plan FF1: the correct query per filter, lent-out never touches [LibraryRepository.observeBooks]. */

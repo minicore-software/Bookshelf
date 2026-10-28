@@ -57,6 +57,7 @@ private class FakeLibraryRepository : LibraryRepository {
 
     override suspend fun addBook(book: Book): Long = throw NotImplementedError()
     override suspend fun updateBook(book: Book): Boolean = throw NotImplementedError()
+    override suspend fun removeBook(id: Long): Boolean = throw NotImplementedError()
 }
 
 /** Plan #32 decision V8: [BookDetailViewModel] starts [BookDetailUiState.Loading], then reflects

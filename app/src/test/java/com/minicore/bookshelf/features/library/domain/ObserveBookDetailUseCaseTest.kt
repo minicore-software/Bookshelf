@@ -57,6 +57,7 @@ private class FakeBookDetailLibraryRepository : LibraryRepository {
 
     override suspend fun addBook(book: Book): Long = throw NotImplementedError()
     override suspend fun updateBook(book: Book): Boolean = throw NotImplementedError()
+    override suspend fun removeBook(id: Long): Boolean = throw NotImplementedError()
 }
 
 /** Plan #32 section 7 AC1: [ObserveBookDetailUseCase] maps the repository's overlay and the
