@@ -163,6 +163,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   any unsaved edits in the sheet survive untouched. A failed removal shows
   "Couldn't remove this book. Try again." and re-enables the sheet for a
   retry. (#34)
+- Delete a book from the Library grid: long-pressing a grid card, or tapping
+  its new "⋮" overflow button (top-start of the cover, always visible for
+  TalkBack/switch-access users), opens a popover with one "Remove book"
+  item. Both paths reuse #34's confirm dialog verbatim - same copy, same
+  open-loan warning, same cascade and cover-file cleanup - so there is no
+  divergent behaviour between the three entry points (Edit, long-press,
+  "⋮"). A removal that fails after confirming shows a Snackbar ("Couldn't
+  remove this book. Try again."); a book already gone is a silent no-op. A
+  pending confirmation survives rotation and process death. (#35)
 
 ### Changed
 - **Internal, no end-user-visible change:** extended the `books` table (Room
