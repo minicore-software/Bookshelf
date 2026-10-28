@@ -135,4 +135,12 @@
     <string name="edit_book_discard_body">Your edits to this book won\'t be saved.</string>
     <string name="edit_book_discard_keep_editing">Keep editing</string>
     <string name="edit_book_discard_confirm">Discard</string>
+    <string name="edit_book_remove_failed">Couldn\'t remove this book. Try again.</string>
+
+    <!-- Remove book dialog (BOOKSHELF-0034), shared by Edit and the Library grid (#35) -->
+    <string name="remove_book_title">Remove “%1$s”?</string>
+    <string name="remove_book_body">This permanently removes the book and its history from your shelf. This can\'t be undone.</string>
+    <string name="remove_book_open_loan_warning">%1$s still has this book. Removing it also deletes the loan record.</string>
+    <string name="remove_book_confirm">Remove</string>
+    <string name="remove_book_cancel">Cancel</string>
 </resources>
