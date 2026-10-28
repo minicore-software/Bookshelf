@@ -48,22 +48,31 @@ app/src/main/java/com/minicore/bookshelf/
  ├── MainActivity.kt        # @AndroidEntryPoint, hosts the NavHost
  ├── navigation/            # BookshelfDestinations (routes), BookshelfNavGraph (NavHost),
  │                          # per-destination nav-seam files (AddBookNavigation,
- │                          # BookDetailNavigation, EditBookNavigation - BOOKSHELF-0032's Edit
- │                          # seam is a documented no-op until #33 registers the route)
+ │                          # BookDetailNavigation, EditBookNavigation - BOOKSHELF-0033 gave
+ │                          # navigateToEditBook its real body and registered book/{bookId}/edit)
  ├── features/
  │    ├── library/
  │    │    ├── ui/
  │    │    │    ├── addbook/   # AddBookRoute/AddBookViewModel/AddBookUiState (the manual "add
- │    │    │    │              # a book" sheet, BOOKSHELF-0031)
+ │    │    │    │              # a book" sheet, BOOKSHELF-0031), built on bookform/'s shared
+ │    │    │    │              # chrome and rules (BOOKSHELF-0033 extraction)
  │    │    │    ├── bookdetail/ # BookDetailRoute/BookDetailViewModel/BookDetailUiState (the
  │    │    │    │               # read-only "Book" modal, reached only via navigation/'s
  │    │    │    │               # navigateToBookDetail - BOOKSHELF-0032)
- │    │    │    └── bookform/  # Stateless BookForm + its field composables (StarRatingInput,
- │    │    │                   # YearStepperField, CoverPicker) - never imports addbook/, so a
- │    │    │                   # future Edit screen can reuse it
+ │    │    │    ├── bookform/  # Stateless BookForm + its field composables (StarRatingInput,
+ │    │    │    │              # YearStepperField, CoverPicker, MemorySection) plus the shared
+ │    │    │    │              # chrome/rules both forms are built on - BookFormSheet,
+ │    │    │    │              # BookFormDiscardDialog, BookFormRules (BOOKSHELF-0033). Never
+ │    │    │    │              # imports addbook/ or editbook/, so either screen can reuse it
+ │    │    │    └── editbook/  # EditBookRoute/EditBookViewModel/EditBookUiState, BorrowingSection
+ │    │    │                   # (the "edit a book" sheet stacked on Book Detail, reached only via
+ │    │    │                   # navigation/'s navigateToEditBook - BOOKSHELF-0033). The lent
+ │    │    │                   # indicator is read-only and live; this package never references a
+ │    │    │                   # Loan write path
  │    │    ├── domain/     # LibraryRepository contract, read models (LibraryBook, LentBook,
  │    │    │               # LibraryCounts, OpenLoan), use cases (incl. AddBookUseCase,
- │    │    │               # ObserveBookDetailUseCase), BookDraft, BookDetail/BookDetailLoan
+ │    │    │               # UpdateBookUseCase, ObserveBookDetailUseCase), BookDraft (incl.
+ │    │    │               # CoverDraft.Stored), BookDetail/BookDetailLoan
  │    │    └── data/       # RoomLibraryRepository (entity <-> domain mapping)
  │    ├── lending/
  │    │    ├── ui/         # Lend-a-book sheet, My Loans screen
