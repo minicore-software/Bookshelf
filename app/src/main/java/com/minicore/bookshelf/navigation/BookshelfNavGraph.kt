@@ -14,6 +14,7 @@ import com.minicore.bookshelf.features.library.ui.LibraryRoute
 import com.minicore.bookshelf.features.library.ui.addbook.AddBookResult
 import com.minicore.bookshelf.features.library.ui.addbook.AddBookRoute
 import com.minicore.bookshelf.features.library.ui.bookdetail.BookDetailRoute
+import com.minicore.bookshelf.features.library.ui.editbook.EditBookResult
 import com.minicore.bookshelf.features.library.ui.editbook.EditBookRoute
 
 /** A12: the result key `AddBookRoute` -> `LibraryRoute` hand off a successful save through, never
@@ -115,9 +116,19 @@ fun BookshelfNavGraph(navController: NavHostController) {
                 // decision E2) - Detail is then visible again and already shows any saved
                 // values (its flow is live); a NotFound also pops Detail itself, through
                 // Detail's own NotFound handling (#32 V8), once Detail re-collects and sees the
-                // row is gone.
-                onDone = { navController.popBackStack(BookshelfDestinations.EditBook.route, inclusive = true) },
-                onRemoveClick = {} /* #34 wires the confirm + cascade */,
+                // row is gone. Removed (plan #34 decision R8) pops Edit *and* Detail together by
+                // popping Detail inclusive; if that returns false (Detail already self-popped,
+                // e.g. its own NotFound close won a race), fall back to popping Edit alone so it
+                // never stays open on a deleted book.
+                onDone = { result ->
+                    if (result == EditBookResult.Removed) {
+                        if (!navController.popBackStack(BookshelfDestinations.BookDetail.route, inclusive = true)) {
+                            navController.popBackStack(BookshelfDestinations.EditBook.route, inclusive = true)
+                        }
+                    } else {
+                        navController.popBackStack(BookshelfDestinations.EditBook.route, inclusive = true)
+                    }
+                },
             )
         }
     }

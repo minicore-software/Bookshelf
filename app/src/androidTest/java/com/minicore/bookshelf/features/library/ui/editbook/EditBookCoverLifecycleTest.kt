@@ -16,6 +16,7 @@ import com.minicore.bookshelf.features.library.domain.CoverDraft
 import com.minicore.bookshelf.features.library.domain.CurrentDateProvider
 import com.minicore.bookshelf.features.library.domain.LibraryRepository
 import com.minicore.bookshelf.features.library.domain.ObserveBookDetailUseCase
+import com.minicore.bookshelf.features.library.domain.RemoveBookUseCase
 import com.minicore.bookshelf.features.library.domain.UpdateBookUseCase
 import com.minicore.bookshelf.features.library.domain.model.LentBook
 import com.minicore.bookshelf.features.library.domain.model.LibraryBook
@@ -51,6 +52,12 @@ private class CoverLifecycleFakeLibraryRepository(initial: LibraryBook?) : Libra
 
     override suspend fun updateBook(book: Book): Boolean {
         byId.value = byId.value?.copy(book = book)
+        return true
+    }
+
+    override suspend fun removeBook(id: Long): Boolean {
+        if (byId.value == null) return false
+        byId.value = null
         return true
     }
 }
@@ -98,6 +105,7 @@ class EditBookCoverLifecycleTest {
     private fun viewModel(repository: CoverLifecycleFakeLibraryRepository, bookId: Long): EditBookViewModel = EditBookViewModel(
         ObserveBookDetailUseCase(repository, CurrentDateProvider(Provider { clock })),
         UpdateBookUseCase(repository, coverImages),
+        RemoveBookUseCase(repository, coverImages),
         coverImages,
         clock,
         SavedStateHandle(mapOf("bookId" to bookId)),

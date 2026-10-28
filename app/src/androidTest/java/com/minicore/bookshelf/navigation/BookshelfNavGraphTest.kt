@@ -465,6 +465,80 @@ class BookshelfNavGraphTest {
         assertEquals(BookshelfDestinations.BookDetail.route, navController.currentDestination?.route)
     }
 
+    // R6 (plan #34): confirming Remove on Edit (stacked over Detail) pops both at once - the
+    // user lands on Home, not on a dead Detail.
+    @Test
+    fun removingABook_popsBothEditAndDetail_landsOnHome() {
+        val repo = fakeRepository as FakeLibraryRepository
+        val readingBook = book(id = 1, status = BookStatus.Reading)
+        repo.allBooks.value = listOf(LibraryBook(readingBook, null))
+
+        lateinit var navController: TestNavHostController
+        composeRule.setContent {
+            navController = TestNavHostController(InstrumentationRegistry.getInstrumentation().targetContext)
+            navController.navigatorProvider.addNavigator(ComposeNavigator())
+            BookshelfTheme { BookshelfNavGraph(navController) }
+        }
+        composeRule.waitForIdle()
+
+        navController.navigateToBookDetail(readingBook.id)
+        composeRule.waitForIdle()
+        navController.navigateToEditBook(readingBook.id)
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(com.minicore.bookshelf.features.library.ui.editbook.EDIT_BOOK_REMOVE_BUTTON_TEST_TAG)
+            .performClick()
+        composeRule.onNodeWithTag(com.minicore.bookshelf.features.library.ui.removebook.REMOVE_BOOK_CONFIRM_BUTTON_TEST_TAG)
+            .performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(BookshelfDestinations.Home.route, navController.currentDestination?.route)
+        assertEquals(1, navController.currentBackStack.value.count { it.destination.route == BookshelfDestinations.Home.route })
+        assertEquals(0, navController.currentBackStack.value.count { it.destination.route == BookshelfDestinations.BookDetail.route })
+        assertEquals(0, navController.currentBackStack.value.count { it.destination.route == BookshelfDestinations.EditBook.route })
+    }
+
+    // R7 (plan #34 decision R8): simulates the race where Detail's own NotFound close already
+    // popped Detail (and Edit above it) before the Removed handler's own pop runs - the handler's
+    // first popBackStack(BookDetail, inclusive) then finds nothing, and the fallback
+    // popBackStack(EditBook, inclusive) is itself a safe no-op (also already gone), landing on
+    // Home either way, without a crash.
+    @Test
+    fun removedHandler_whenDetailAlreadySelfPopped_fallbackIsSafeNoOp_landsOnHome() {
+        val repo = fakeRepository as FakeLibraryRepository
+        val readingBook = book(id = 1, status = BookStatus.Reading)
+        repo.allBooks.value = listOf(LibraryBook(readingBook, null))
+
+        lateinit var navController: TestNavHostController
+        composeRule.setContent {
+            navController = TestNavHostController(InstrumentationRegistry.getInstrumentation().targetContext)
+            navController.navigatorProvider.addNavigator(ComposeNavigator())
+            BookshelfTheme { BookshelfNavGraph(navController) }
+        }
+        composeRule.waitForIdle()
+
+        navController.navigateToBookDetail(readingBook.id)
+        composeRule.waitForIdle()
+        navController.navigateToEditBook(readingBook.id)
+        composeRule.waitForIdle()
+
+        // Simulates Detail's own race-winning self-close: pops Detail (and Edit above it) first.
+        composeRule.runOnIdle {
+            navController.popBackStack(BookshelfDestinations.BookDetail.route, true)
+        }
+        composeRule.waitForIdle()
+        assertEquals(BookshelfDestinations.Home.route, navController.currentDestination?.route)
+
+        // The Removed handler's own attempt now finds nothing to pop - both calls are no-ops,
+        // and the app is already correctly on Home.
+        val poppedDetail = navController.popBackStack(BookshelfDestinations.BookDetail.route, true)
+        val poppedEdit = navController.popBackStack(BookshelfDestinations.EditBook.route, true)
+
+        assertEquals(false, poppedDetail)
+        assertEquals(false, poppedEdit)
+        assertEquals(BookshelfDestinations.Home.route, navController.currentDestination?.route)
+    }
+
     private fun book(id: Long, status: BookStatus) = Book(
         id = id,
         title = "Book $id",
@@ -506,11 +580,20 @@ class FakeLibraryRepository @Inject constructor() : LibraryRepository {
         )
     }
 
-    override fun observeBook(id: Long): Flow<Book?> = throw NotImplementedError()
+    override fun observeBook(id: Long): Flow<Book?> =
+        allBooks.map { all -> all.find { it.book.id == id }?.book }
     override fun observeLibraryBook(id: Long): Flow<LibraryBook?> =
         allBooks.map { all -> all.find { it.book.id == id } }
 
     override suspend fun addBook(book: Book): Long = throw NotImplementedError()
 
     override suspend fun updateBook(book: Book): Boolean = throw NotImplementedError()
+
+    override suspend fun removeBook(id: Long): Boolean {
+        val existed = allBooks.value.any { it.book.id == id }
+        allBooks.value = allBooks.value.filterNot { it.book.id == id }
+        lent.value = lent.value.filterNot { it.book.id == id }
+        reading.value = reading.value.filterNot { it.book.id == id }
+        return existed
+    }
 }

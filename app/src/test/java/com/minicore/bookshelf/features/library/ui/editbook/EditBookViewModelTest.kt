@@ -12,6 +12,7 @@ import com.minicore.bookshelf.features.library.domain.CoverDraft
 import com.minicore.bookshelf.features.library.domain.CurrentDateProvider
 import com.minicore.bookshelf.features.library.domain.LibraryRepository
 import com.minicore.bookshelf.features.library.domain.ObserveBookDetailUseCase
+import com.minicore.bookshelf.features.library.domain.RemoveBookUseCase
 import com.minicore.bookshelf.features.library.domain.UpdateBookUseCase
 import com.minicore.bookshelf.features.library.domain.model.LentBook
 import com.minicore.bookshelf.features.library.domain.model.LibraryBook
@@ -89,6 +90,17 @@ private class EditBookFakeLibraryRepository : LibraryRepository {
     var lastUpdated: Book? = null
     var updateReturnsFalse = false
     var failUpdate = false
+    var removeCallCount = 0
+    var removeReturnsFalse = false
+    var failRemove = false
+
+    /** Completed by a test to control exactly when [removeBook] resumes, so a test can assert on
+     * in-flight `isRemoving` state before letting the use case finish. */
+    var removeGate: kotlinx.coroutines.CompletableDeferred<Unit>? = null
+
+    /** Completed by a test to control exactly when [updateBook] resumes, so a test can assert on
+     * in-flight `isSaving` state before letting the save finish. */
+    var updateGate: kotlinx.coroutines.CompletableDeferred<Unit>? = null
 
     override fun observeBooks(status: BookStatus?): Flow<List<LibraryBook>> = throw NotImplementedError()
     override fun observeCurrentlyReading(): Flow<List<LibraryBook>> = throw NotImplementedError()
@@ -110,10 +122,20 @@ private class EditBookFakeLibraryRepository : LibraryRepository {
 
     override suspend fun updateBook(book: Book): Boolean {
         updateCallCount++
+        updateGate?.await()
         if (failUpdate) throw IllegalStateException("update failed")
         lastUpdated = book
         if (updateReturnsFalse) return false
         byId.value = byId.value?.copy(book = book)
+        return true
+    }
+
+    override suspend fun removeBook(id: Long): Boolean {
+        removeCallCount++
+        removeGate?.await()
+        if (failRemove) throw IllegalStateException("remove failed")
+        if (removeReturnsFalse) return false
+        byId.value = null
         return true
     }
 }
@@ -193,6 +215,7 @@ class EditBookViewModelTest {
         EditBookViewModel(
             observeDetail(),
             UpdateBookUseCase(repository, coverImages),
+            RemoveBookUseCase(repository, coverImages),
             coverImages,
             clock,
             savedStateHandle,
@@ -573,5 +596,221 @@ class EditBookViewModelTest {
 
         assertEquals(listOf(coverImages.nextDraftRef), coverImages.discarded)
         assertTrue(coverImages.deleted.isEmpty())
+    }
+
+    // V1: two onRemoveConfirmed() calls without a suspension point in between remove exactly
+    // once (mirrors F17's doubleSave_updatesExactlyOnce).
+    @Test
+    fun doubleRemoveConfirmed_removesExactlyOnce() = editBookTest {
+        repository.byId.value = LibraryBook(populatedBook(1L), null)
+        val vm = viewModel(bookId = 1L)
+        dispatcher.scheduler.runCurrent()
+
+        vm.onRemoveConfirmed()
+        vm.onRemoveConfirmed()
+        dispatcher.scheduler.runCurrent()
+
+        assertEquals(1, repository.removeCallCount)
+    }
+
+    // V2: onRemoveConfirmed() is a no-op while a save is in flight.
+    @Test
+    fun removeConfirmed_whileSaving_isNoOp() = editBookTest {
+        repository.byId.value = LibraryBook(populatedBook(1L), null)
+        repository.updateGate = kotlinx.coroutines.CompletableDeferred()
+        val vm = viewModel(bookId = 1L)
+        dispatcher.scheduler.runCurrent()
+
+        vm.onSave()
+        dispatcher.scheduler.runCurrent()
+        assertTrue(vm.uiState.value.isSaving)
+
+        vm.onRemoveConfirmed()
+        dispatcher.scheduler.runCurrent()
+
+        assertEquals(0, repository.removeCallCount)
+        repository.updateGate?.complete(Unit)
+    }
+
+    // V3: onSave() is a no-op while a remove is in flight.
+    @Test
+    fun save_whileRemoving_isNoOp() = editBookTest {
+        repository.byId.value = LibraryBook(populatedBook(1L), null)
+        repository.removeGate = kotlinx.coroutines.CompletableDeferred()
+        val vm = viewModel(bookId = 1L)
+        dispatcher.scheduler.runCurrent()
+
+        vm.onRemoveConfirmed()
+        dispatcher.scheduler.runCurrent()
+        assertTrue(vm.uiState.value.isRemoving)
+
+        vm.onSave()
+        dispatcher.scheduler.runCurrent()
+
+        assertEquals(0, repository.updateCallCount)
+        repository.removeGate?.complete(Unit)
+    }
+
+    // V4: onDismissRequest() is a no-op while a remove is in flight.
+    @Test
+    fun dismissRequest_whileRemoving_isNoOp() = editBookTest {
+        repository.byId.value = LibraryBook(populatedBook(1L), null)
+        repository.removeGate = kotlinx.coroutines.CompletableDeferred()
+        val vm = viewModel(bookId = 1L)
+        dispatcher.scheduler.runCurrent()
+
+        vm.onRemoveConfirmed()
+        dispatcher.scheduler.runCurrent()
+        assertTrue(vm.uiState.value.isRemoving)
+
+        val results = mutableListOf<EditBookResult>()
+        backgroundScope.launch { vm.onDone.toList(results) }
+
+        vm.onDismissRequest()
+        dispatcher.scheduler.runCurrent()
+
+        assertTrue(results.isEmpty())
+        repository.removeGate?.complete(Unit)
+    }
+
+    // V5/R7: a null row emission racing an in-flight remove is suppressed - only the use case's
+    // own Removed result is emitted, never NotFound.
+    @Test
+    fun nullEmission_whileRemoving_isSuppressed_onlyRemovedIsEmitted() = editBookTest {
+        repository.byId.value = LibraryBook(populatedBook(1L), null)
+        repository.removeGate = kotlinx.coroutines.CompletableDeferred()
+        val vm = viewModel(bookId = 1L)
+        dispatcher.scheduler.runCurrent()
+
+        val results = mutableListOf<EditBookResult>()
+        backgroundScope.launch { vm.onDone.toList(results) }
+
+        vm.onRemoveConfirmed()
+        dispatcher.scheduler.runCurrent()
+        assertTrue(vm.uiState.value.isRemoving)
+
+        // A live Room re-emission can delay-arrive with null before the use case's own
+        // coroutine resumes.
+        repository.byId.value = null
+        dispatcher.scheduler.runCurrent()
+        assertTrue(results.isEmpty())
+
+        repository.removeGate?.complete(Unit)
+        dispatcher.scheduler.runCurrent()
+
+        assertEquals(listOf(EditBookResult.Removed), results)
+    }
+
+    // V6: an unsaved CoverDraft.Image draft is discarded when the remove succeeds.
+    @Test
+    fun removeSucceeds_withUnsavedImageDraft_discardsTheDraft() = editBookTest {
+        repository.byId.value = LibraryBook(populatedBook(1L), null)
+        val vm = viewModel(bookId = 1L)
+        dispatcher.scheduler.runCurrent()
+
+        vm.onImagePicked("content://new-photo")
+        dispatcher.scheduler.runCurrent()
+        assertEquals(CoverDraft.Image(coverImages.nextDraftRef), vm.uiState.value.cover)
+
+        vm.onRemoveConfirmed()
+        dispatcher.scheduler.runCurrent()
+
+        assertEquals(listOf(coverImages.nextDraftRef), coverImages.discarded)
+    }
+
+    // V7: a CoverDraft.Stored cover is never touched by the VM when the remove succeeds - the
+    // use case already deleted the row's own stored cover.
+    @Test
+    fun removeSucceeds_withStoredCover_doesNotDiscardAnyFile() = editBookTest {
+        repository.byId.value = LibraryBook(populatedBook(1L), null)
+        val vm = viewModel(bookId = 1L)
+        dispatcher.scheduler.runCurrent()
+        assertTrue(vm.uiState.value.cover is CoverDraft.Stored)
+
+        vm.onRemoveConfirmed()
+        dispatcher.scheduler.runCurrent()
+
+        assertTrue(coverImages.discarded.isEmpty())
+    }
+
+    // V8/V9: the use case throwing sets RemoveFailed and re-enables the controls; emits nothing;
+    // a retry afterwards succeeds.
+    @Test
+    fun removeThrows_setsRemoveFailed_reEnables_retrySucceeds() = editBookTest {
+        repository.byId.value = LibraryBook(populatedBook(1L), null)
+        repository.failRemove = true
+        val vm = viewModel(bookId = 1L)
+        dispatcher.scheduler.runCurrent()
+
+        val results = mutableListOf<EditBookResult>()
+        backgroundScope.launch { vm.onDone.toList(results) }
+
+        vm.onRemoveConfirmed()
+        dispatcher.scheduler.runCurrent()
+
+        assertFalse(vm.uiState.value.isRemoving)
+        assertEquals(EditBookError.RemoveFailed, vm.uiState.value.error)
+        assertTrue(results.isEmpty())
+
+        repository.failRemove = false
+        vm.onRemoveConfirmed()
+        dispatcher.scheduler.runCurrent()
+
+        assertEquals(listOf(EditBookResult.Removed), results)
+    }
+
+    // V10: cancelling the ViewModel's scope while a remove is in flight (the realistic
+    // cancellation path, e.g. onCleared) propagates as a CancellationException - it must not be
+    // swallowed into EditBookError.RemoveFailed, which would otherwise show a wrong "failed"
+    // message for what is really just the screen going away.
+    @Test
+    fun removeCancelled_viaScopeCancellation_isNotSwallowedAsRemoveFailed() = editBookTest {
+        repository.byId.value = LibraryBook(populatedBook(1L), null)
+        repository.removeGate = kotlinx.coroutines.CompletableDeferred()
+        val vm = viewModel(bookId = 1L)
+        dispatcher.scheduler.runCurrent()
+
+        vm.onRemoveConfirmed()
+        dispatcher.scheduler.runCurrent()
+        assertTrue(vm.uiState.value.isRemoving)
+
+        vm.viewModelScope.cancel()
+        dispatcher.scheduler.runCurrent()
+
+        // Cancelled mid-flight, never resolved to RemoveFailed.
+        assertTrue(vm.uiState.value.isRemoving)
+        assertNull(vm.uiState.value.error)
+    }
+
+    // V11: borrowerName follows the live loan state, both directions.
+    @Test
+    fun borrowerName_followsLiveLoanState() = editBookTest {
+        repository.byId.value = LibraryBook(populatedBook(1L), null)
+        val vm = viewModel(bookId = 1L)
+        dispatcher.scheduler.runCurrent()
+        assertNull(vm.uiState.value.borrowerName)
+
+        val loan = OpenLoan(loanId = 9L, borrowerName = "Alex", loanedAt = Instant.EPOCH, dueAt = LocalDate.of(1970, 1, 2))
+        repository.byId.value = LibraryBook(populatedBook(1L), loan)
+        dispatcher.scheduler.runCurrent()
+        assertEquals("Alex", vm.uiState.value.borrowerName)
+
+        repository.byId.value = LibraryBook(populatedBook(1L), null)
+        dispatcher.scheduler.runCurrent()
+        assertNull(vm.uiState.value.borrowerName)
+    }
+
+    // V12: onRemoveConfirmed() is a no-op before the form has loaded.
+    @Test
+    fun removeConfirmed_beforeLoaded_isNoOp() = editBookTest {
+        repository.byId.value = LibraryBook(populatedBook(1L), null)
+        val vm = viewModel(bookId = 1L)
+        // Deliberately no runCurrent(): isLoaded is still false.
+        assertFalse(vm.uiState.value.isLoaded)
+
+        vm.onRemoveConfirmed()
+        dispatcher.scheduler.runCurrent()
+
+        assertEquals(0, repository.removeCallCount)
     }
 }

@@ -11,6 +11,8 @@ import com.minicore.bookshelf.core.model.CoverPreset
 import com.minicore.bookshelf.features.library.domain.BookDraft
 import com.minicore.bookshelf.features.library.domain.CoverDraft
 import com.minicore.bookshelf.features.library.domain.ObserveBookDetailUseCase
+import com.minicore.bookshelf.features.library.domain.RemoveBookResult
+import com.minicore.bookshelf.features.library.domain.RemoveBookUseCase
 import com.minicore.bookshelf.features.library.domain.UpdateBookResult
 import com.minicore.bookshelf.features.library.domain.UpdateBookUseCase
 import com.minicore.bookshelf.features.library.domain.model.BookDetail
@@ -56,15 +58,19 @@ private const val KEY_SEEDED = "seeded"
 /**
  * Backs [EditBookUiState] with `SavedStateHandle` field by field (plan #33 section 4.4). Seeds
  * once from the first [ObserveBookDetailUseCase] emission (decision E10); every later emission
- * only updates [EditBookUiState.isLentOut] and re-derives [EditBookUiState.initialDraft] from the
- * fresh row - it never overwrites what the user is typing (F3). Saving is single-flight (mirrors
- * `AddBookViewModel` A8): [onSave] sets `isSaving = true` synchronously, before the first suspend
- * point, so two calls in the same frame can never both pass the guard (F17).
+ * only updates [EditBookUiState.isLentOut], [EditBookUiState.borrowerName] and re-derives
+ * [EditBookUiState.initialDraft] from the fresh row - it never overwrites what the user is typing
+ * (F3). Saving is single-flight (mirrors `AddBookViewModel` A8): [onSave] sets `isSaving = true`
+ * synchronously, before the first suspend point, so two calls in the same frame can never both
+ * pass the guard (F17). [onRemoveConfirmed] follows the same single-flight rule and is mutually
+ * exclusive with saving (plan #34 decision R6); a `null` row emission while removing is suppressed
+ * (decision R7) - the use case's own result is the single outcome.
  */
 @HiltViewModel
 class EditBookViewModel @Inject constructor(
     private val observeBookDetail: ObserveBookDetailUseCase,
     private val updateBookUseCase: UpdateBookUseCase,
+    private val removeBookUseCase: RemoveBookUseCase,
     private val coverImages: CoverImageStore,
     private val clock: Clock,
     private val savedStateHandle: SavedStateHandle,
@@ -115,10 +121,14 @@ class EditBookViewModel @Inject constructor(
 
     private fun onBookDetail(detail: BookDetail?) {
         if (detail == null) {
+            // R7: a null emission racing an in-flight remove is not a second outcome - the use
+            // case's own Removed/NotFound result is the single source of truth.
+            if (_uiState.value.isRemoving) return
             emitResult(EditBookResult.NotFound)
             return
         }
         val draft = detail.book.toBookDraft()
+        val borrowerName = detail.loan?.borrowerName
         if (!seeded) {
             seeded = true
             savedStateHandle[KEY_SEEDED] = true
@@ -135,11 +145,16 @@ class EditBookViewModel @Inject constructor(
                     memoryWhat = draft.memoryWhat,
                     cover = draft.cover,
                     isLentOut = detail.loan != null,
+                    borrowerName = borrowerName,
                     initialDraft = draft,
                 )
             }
         } else {
-            _uiState.value = _uiState.value.copy(isLentOut = detail.loan != null, initialDraft = draft)
+            _uiState.value = _uiState.value.copy(
+                isLentOut = detail.loan != null,
+                borrowerName = borrowerName,
+                initialDraft = draft,
+            )
         }
     }
 
@@ -298,19 +313,51 @@ class EditBookViewModel @Inject constructor(
     }
 
     /**
-     * Every exit path (Cancel, X, back, scrim) routes here. Ignored while saving, and
-     * single-flight like [onSave]. Discards the current [CoverDraft.Image] draft if any; never
-     * touches a [CoverDraft.Stored] file.
+     * Every exit path (Cancel, X, back, scrim) routes here. Ignored while saving or removing,
+     * and single-flight like [onSave]. Discards the current [CoverDraft.Image] draft if any;
+     * never touches a [CoverDraft.Stored] file.
      */
     fun onDismissRequest() {
         val state = _uiState.value
-        if (state.isSaving || hasRequestedDismiss) return
+        if (state.isSaving || state.isRemoving || hasRequestedDismiss) return
         hasRequestedDismiss = true
         val cover = state.cover
         if (cover is CoverDraft.Image) {
             viewModelScope.launch { coverImages.discardDraft(cover.draftRef) }
         }
         emitResult(EditBookResult.Cancelled)
+    }
+
+    /**
+     * Runs the remove use case single-flight (plan #34 decision R6): a no-op while not loaded,
+     * while saving, while already removing, or once a result was emitted. [isRemoving] is set
+     * synchronously, before any suspend point, so two calls in the same frame can never both
+     * pass the guard. On [RemoveBookResult.Removed], discards the current unsaved
+     * [CoverDraft.Image] draft if any (the use case already deleted the row's own stored cover);
+     * a [CoverDraft.Stored] is never touched here. On [RemoveBookResult.NotFound], defers to
+     * [emitResult]'s own draft discard. On any other exception, re-enables the controls with
+     * [EditBookError.RemoveFailed] so the user can retry.
+     */
+    fun onRemoveConfirmed() {
+        val state = _uiState.value
+        if (!state.isLoaded || state.isSaving || state.isRemoving || hasEmittedResult) return
+        update { it.copy(isRemoving = true, error = null) }
+        viewModelScope.launch {
+            try {
+                when (removeBookUseCase(bookId)) {
+                    RemoveBookResult.Removed -> {
+                        val cover = _uiState.value.cover
+                        if (cover is CoverDraft.Image) coverImages.discardDraft(cover.draftRef)
+                        emitResult(EditBookResult.Removed)
+                    }
+                    RemoveBookResult.NotFound -> emitResult(EditBookResult.NotFound)
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                update { it.copy(isRemoving = false, error = EditBookError.RemoveFailed) }
+            }
+        }
     }
 
     private fun emitResult(result: EditBookResult) {
