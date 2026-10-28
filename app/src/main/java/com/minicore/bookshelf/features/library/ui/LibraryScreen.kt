@@ -66,6 +66,8 @@ private val FabMargin = 20.dp
  * @param onSeeAllLoansClick a stub until My Loans ships (epic #17 D19).
  * @param onFilterSelected called with the tapped chip's [LibraryFilter] - defaults to a no-op.
  * @param onAddBookClick a stub until Add Book ships (epic #17 D9) - defaults to a no-op.
+ * @param onRemoveBookRequest called with a grid card's book id, from either the long-press
+ *   popover or its "⋮" menu (plan #35 4.1) - defaults to a no-op.
  */
 @Composable
 fun LibraryScreen(
@@ -76,6 +78,7 @@ fun LibraryScreen(
     onSeeAllLoansClick: () -> Unit = {},
     onFilterSelected: (LibraryFilter) -> Unit = {},
     onAddBookClick: () -> Unit = {},
+    onRemoveBookRequest: (bookId: Long) -> Unit = {},
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
 ) {
     Box(
@@ -142,6 +145,7 @@ fun LibraryScreen(
                             libraryBook = book,
                             column = index % 3,
                             onBookClick = onBookClick,
+                            onRemoveBookRequest = onRemoveBookRequest,
                         )
                     }
                     fullSpanItem(key = "grid_bottom") {
