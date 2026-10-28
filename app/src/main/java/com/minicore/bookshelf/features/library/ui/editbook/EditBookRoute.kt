@@ -42,6 +42,7 @@ import com.minicore.bookshelf.features.library.ui.bookform.BookFormDiscardDialog
 import com.minicore.bookshelf.features.library.ui.bookform.BookFormSheet
 import com.minicore.bookshelf.features.library.ui.bookform.BookFormSheetTestTags
 import com.minicore.bookshelf.features.library.ui.bookform.MemorySection
+import com.minicore.bookshelf.features.library.ui.removebook.RemoveBookDialog
 
 const val EDIT_BOOK_SHEET_TEST_TAG = "edit_book_sheet"
 const val EDIT_BOOK_SCRIM_TEST_TAG = "edit_book_scrim"
@@ -51,6 +52,7 @@ const val EDIT_BOOK_CANCEL_BUTTON_TEST_TAG = "edit_book_cancel_button"
 const val EDIT_BOOK_SAVE_BUTTON_TEST_TAG = "edit_book_save_button"
 const val EDIT_BOOK_DISCARD_DIALOG_TEST_TAG = "edit_book_discard_dialog"
 const val EDIT_BOOK_LOADING_TEST_TAG = "edit_book_loading"
+const val EDIT_BOOK_REMOVE_FAILED_TEST_TAG = "edit_book_remove_failed"
 
 private val EDIT_BOOK_TEST_TAGS = BookFormSheetTestTags(
     sheet = EDIT_BOOK_SHEET_TEST_TAG,
@@ -61,29 +63,29 @@ private val EDIT_BOOK_TEST_TAGS = BookFormSheetTestTags(
 /**
  * Stateful entry point for the "edit a book" sheet (plan #33 section 4.1, decision E2). Hosted
  * by `navigation/BookshelfNavGraph.kt`'s `dialog(...)` destination, stacked on top of Book
- * Detail. [onRemoveClick] is a no-op wired by the nav graph (`#34` owns the handler, decision
- * E12) - this screen only ever calls it, never writes to the database itself.
+ * Detail. Owns the "Remove book" confirm flow in-sheet (plan #34 decision R5): tapping "Remove
+ * book" shows [RemoveBookDialog]; confirming runs [EditBookViewModel.onRemoveConfirmed] and the
+ * nav graph pops both Edit and Detail on [EditBookResult.Removed].
  */
 @Composable
 fun EditBookRoute(
     onDone: (EditBookResult) -> Unit,
-    onRemoveClick: (bookId: Long) -> Unit,
     viewModel: EditBookViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val bookId = viewModel.bookId
     var showDiscardConfirm by rememberSaveable { mutableStateOf(false) }
+    var showRemoveConfirm by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         viewModel.onDone.collect { result -> onDone(result) }
     }
 
     fun requestDismiss() {
-        if (uiState.isSaving) return
+        if (uiState.isSaving || uiState.isRemoving) return
         if (uiState.isDirty) showDiscardConfirm = true else viewModel.onDismissRequest()
     }
 
-    BackHandler(enabled = !uiState.isSaving) { requestDismiss() }
+    BackHandler(enabled = !uiState.isSaving && !uiState.isRemoving) { requestDismiss() }
 
     val pickImage = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         viewModel.onImagePicked(uri?.toString())
@@ -110,7 +112,7 @@ fun EditBookRoute(
         onCancel = ::requestDismiss,
         onClose = ::requestDismiss,
         onScrimClick = ::requestDismiss,
-        onRemoveBookClick = { onRemoveClick(bookId) },
+        onRemoveBookClick = { showRemoveConfirm = true },
     )
 
     if (showDiscardConfirm) {
@@ -125,6 +127,19 @@ fun EditBookRoute(
                 showDiscardConfirm = false
                 viewModel.onDismissRequest()
             },
+        )
+    }
+
+    if (showRemoveConfirm) {
+        // R10: the persisted title, not whatever the user may currently be typing.
+        RemoveBookDialog(
+            bookTitle = uiState.initialDraft?.title ?: uiState.title,
+            borrowerName = uiState.borrowerName,
+            onConfirm = {
+                showRemoveConfirm = false
+                viewModel.onRemoveConfirmed()
+            },
+            onDismiss = { showRemoveConfirm = false },
         )
     }
 }
@@ -150,7 +165,7 @@ private fun EditBookSheet(
     onScrimClick: () -> Unit,
     onRemoveBookClick: () -> Unit,
 ) {
-    val enabled = uiState.isLoaded && !uiState.isSaving
+    val enabled = uiState.isLoaded && !uiState.isSaving && !uiState.isRemoving
 
     BookFormSheet(
         title = stringResource(R.string.edit_book_title),
@@ -158,20 +173,35 @@ private fun EditBookSheet(
         testTags = EDIT_BOOK_TEST_TAGS,
         onClose = onClose,
         onScrimClick = onScrimClick,
-        errorSlot = if (uiState.error == EditBookError.SaveFailed) {
-            {
-                Text(
-                    text = stringResource(R.string.edit_book_save_failed),
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 8.dp)
-                        .semantics { liveRegion = LiveRegionMode.Polite },
-                )
+        errorSlot = when (uiState.error) {
+            EditBookError.SaveFailed -> {
+                {
+                    Text(
+                        text = stringResource(R.string.edit_book_save_failed),
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 8.dp)
+                            .semantics { liveRegion = LiveRegionMode.Polite },
+                    )
+                }
             }
-        } else {
-            null
+            EditBookError.RemoveFailed -> {
+                {
+                    Text(
+                        text = stringResource(R.string.edit_book_remove_failed),
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 8.dp)
+                            .testTag(EDIT_BOOK_REMOVE_FAILED_TEST_TAG)
+                            .semantics { liveRegion = LiveRegionMode.Polite },
+                    )
+                }
+            }
+            else -> null
         },
         footer = {
             FlowRow(

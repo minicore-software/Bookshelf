@@ -304,6 +304,63 @@ class EditBookEndToEndTest {
         assertEquals(1, editEntries)
     }
 
+    // AC3/AC4/R9: the real pencil -> Edit -> Remove -> confirm round trip, against the real
+    // in-memory DB and the real FileCoverImageStore - the row and its loan both cascade away,
+    // the stored cover file is deleted, and the user lands back on Library (Home), past both
+    // Detail and Edit.
+    @Test
+    fun removingABook_withAnOpenLoanAndAStoredCover_cascadesInDb_deletesCoverFile_returnsToLibrary() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val coversDir = java.io.File(context.filesDir, "covers").apply { mkdirs() }
+        val coverFile = java.io.File(coversDir, "11111111-1111-1111-1111-111111111111.jpg")
+        coverFile.writeText("fake-jpeg-bytes")
+        val coverRef = "covers/${coverFile.name}"
+
+        runBlocking {
+            database.bookDao().update(
+                requireNotNull(database.bookDao().observeById(bookId).first()).copy(coverUri = coverRef),
+            )
+        }
+        val loanId = runBlocking {
+            database.loanDao().insert(
+                LoanEntity(
+                    bookId = bookId,
+                    borrowerName = "Alex",
+                    borrowerContact = null,
+                    loanedAt = Instant.EPOCH,
+                    dueAt = LocalDate.of(2026, 11, 1),
+                    returnedAt = null,
+                    remindEnabled = false,
+                    notes = null,
+                ),
+            )
+        }
+
+        val navController = setContent()
+        openBookDetailThenEdit(navController)
+
+        composeRule.onNodeWithTag(com.minicore.bookshelf.features.library.ui.editbook.EDIT_BOOK_REMOVE_BUTTON_TEST_TAG)
+            .performClick()
+        composeRule.onNodeWithTag(com.minicore.bookshelf.features.library.ui.removebook.REMOVE_BOOK_OPEN_LOAN_WARNING_TEST_TAG)
+            .assertIsDisplayed()
+        composeRule.onNodeWithTag(com.minicore.bookshelf.features.library.ui.removebook.REMOVE_BOOK_CONFIRM_BUTTON_TEST_TAG)
+            .performClick()
+
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            navController.currentDestination?.route == BookshelfDestinations.Home.route
+        }
+
+        assertEquals(BookshelfDestinations.Home.route, navController.currentDestination?.route)
+        assertEquals(0, navController.currentBackStack.value.count { it.destination.route == BookshelfDestinations.BookDetail.route })
+        assertEquals(0, navController.currentBackStack.value.count { it.destination.route == BookshelfDestinations.EditBook.route })
+
+        val bookRow = runBlocking { database.bookDao().observeById(bookId).first() }
+        assertEquals(null, bookRow)
+        val loanRow = runBlocking { selectLoanRow(loanId) }
+        assertEquals(null, loanRow)
+        assertEquals(false, coverFile.exists())
+    }
+
     private object TestDatabaseHolder {
         lateinit var database: BookshelfDatabase
     }

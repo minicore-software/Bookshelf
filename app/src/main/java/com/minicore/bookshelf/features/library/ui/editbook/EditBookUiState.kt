@@ -5,8 +5,9 @@ import com.minicore.bookshelf.features.library.domain.BookDraft
 import com.minicore.bookshelf.features.library.domain.CoverDraft
 import com.minicore.bookshelf.features.library.ui.bookform.BookFormRules
 
-/** [EditBookUiState.error] (plan #33 section 4.4); cleared on the next edit or save attempt. */
-enum class EditBookError { ImageImportFailed, SaveFailed }
+/** [EditBookUiState.error] (plan #33 section 4.4, plan #34 section 4.4); cleared on the next edit
+ * or save/remove attempt. */
+enum class EditBookError { ImageImportFailed, SaveFailed, RemoveFailed }
 
 /**
  * The Edit Book form's full state (plan #33 section 4.4). One immutable value, backed field by
@@ -28,13 +29,15 @@ data class EditBookUiState(
     val isLentOut: Boolean = false,
     val isImportingImage: Boolean = false,
     val isSaving: Boolean = false,
+    val isRemoving: Boolean = false,
+    val borrowerName: String? = null,
     val error: EditBookError? = null,
     val initialDraft: BookDraft? = null,
 ) {
     /** `"0"` -> `null` (plan #33 section 4.4). */
     val publishedYear: Int? get() = BookFormRules.parsePublishedYear(yearText)
 
-    val canSave: Boolean get() = isLoaded && title.isNotBlank() && !isSaving && !isImportingImage
+    val canSave: Boolean get() = isLoaded && title.isNotBlank() && !isSaving && !isImportingImage && !isRemoving
 
     val isDirty: Boolean get() = initialDraft != null && toDraft() != initialDraft
 
@@ -51,11 +54,15 @@ data class EditBookUiState(
     )
 }
 
-/** What the sheet did when it closed (plan #33 section 4.1). */
+/** What the sheet did when it closed (plan #33 section 4.1, plan #34 section 4.4). */
 sealed interface EditBookResult {
     data object Saved : EditBookResult
     data object Cancelled : EditBookResult
 
-    /** The row vanished before or during save (plan #33 section 4.4). */
+    /** The row vanished before or during save/remove (plan #33 section 4.4, plan #34 decision
+     * R7). */
     data object NotFound : EditBookResult
+
+    /** The book was removed via the confirm dialog (plan #34 decision R8). */
+    data object Removed : EditBookResult
 }

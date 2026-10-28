@@ -28,6 +28,7 @@ import com.minicore.bookshelf.core.model.CoverPreset
 import com.minicore.bookshelf.features.library.domain.CurrentDateProvider
 import com.minicore.bookshelf.features.library.domain.LibraryRepository
 import com.minicore.bookshelf.features.library.domain.ObserveBookDetailUseCase
+import com.minicore.bookshelf.features.library.domain.RemoveBookUseCase
 import com.minicore.bookshelf.features.library.domain.UpdateBookUseCase
 import com.minicore.bookshelf.features.library.domain.model.LentBook
 import com.minicore.bookshelf.features.library.domain.model.LibraryBook
@@ -58,6 +59,14 @@ private class EditBookRouteFakeLibraryRepository : LibraryRepository {
      * on in-flight-save UI state. */
     var updateGate: CompletableDeferred<Unit>? = null
 
+    var removeCallCount = 0
+    var removeReturnsFalse = false
+    var failRemove = false
+
+    /** When set, [removeBook] suspends on this until the test completes it, so a test can assert
+     * on in-flight-removing UI state. */
+    var removeGate: CompletableDeferred<Unit>? = null
+
     override fun observeBooks(status: BookStatus?): Flow<List<LibraryBook>> = throw NotImplementedError()
     override fun observeCurrentlyReading(): Flow<List<LibraryBook>> = throw NotImplementedError()
     override fun observeLentOutBooks(): Flow<List<LentBook>> = throw NotImplementedError()
@@ -71,6 +80,15 @@ private class EditBookRouteFakeLibraryRepository : LibraryRepository {
         updateGate?.await()
         lastUpdated = book
         byId.value = byId.value?.copy(book = book)
+        return true
+    }
+
+    override suspend fun removeBook(id: Long): Boolean {
+        removeCallCount++
+        removeGate?.await()
+        if (failRemove) throw IllegalStateException("remove failed")
+        if (removeReturnsFalse) return false
+        byId.value = null
         return true
     }
 }
@@ -117,18 +135,18 @@ class EditBookRouteTest {
     private fun setContent(
         bookId: Long = 1L,
         onDone: (EditBookResult) -> Unit = {},
-        onRemoveClick: (Long) -> Unit = {},
     ) {
         val viewModel = EditBookViewModel(
             ObserveBookDetailUseCase(repository, CurrentDateProvider(Provider { clock })),
             UpdateBookUseCase(repository, coverImages),
+            RemoveBookUseCase(repository, coverImages),
             coverImages,
             clock,
             SavedStateHandle(mapOf("bookId" to bookId)),
         )
         composeRule.setContent {
             BookshelfTheme {
-                EditBookRoute(onDone = onDone, onRemoveClick = onRemoveClick, viewModel = viewModel)
+                EditBookRoute(onDone = onDone, viewModel = viewModel)
             }
         }
     }
@@ -144,17 +162,137 @@ class EditBookRouteTest {
         composeRule.onNodeWithText("Loved it").assertIsDisplayed()
     }
 
-    // F20: "Remove book" is displayed, enabled, and tapping it calls onRemoveClick(bookId) only.
+    // AC1/R1: tapping "Remove book" opens the confirm dialog showing the *persisted* title, not
+    // an in-progress edit; the sheet stays open and no repository call happens yet.
     @Test
-    fun removeBook_callsOnRemoveClickOnly_sheetStaysOpen() {
+    fun removeBookClick_opensConfirmDialog_showsPersistedTitle_doesNotCallRemoveYet() {
         repository.byId.value = LibraryBook(book(7L), null)
-        var removedId: Long? = null
-        setContent(bookId = 7L, onRemoveClick = { removedId = it })
+        setContent(bookId = 7L)
+
+        composeRule.onNodeWithTag(BOOK_FORM_TITLE_FIELD_TEST_TAG).performTextClearance()
+        composeRule.onNodeWithTag(BOOK_FORM_TITLE_FIELD_TEST_TAG).performTextInput("Dune II")
 
         composeRule.onNodeWithTag(EDIT_BOOK_REMOVE_BUTTON_TEST_TAG).assertIsEnabled().performClick()
 
-        assertEquals(7L, removedId)
+        composeRule.onNodeWithTag(com.minicore.bookshelf.features.library.ui.removebook.REMOVE_BOOK_DIALOG_TEST_TAG)
+            .assertIsDisplayed()
+        composeRule.onNodeWithText("Dune", substring = true).assertIsDisplayed()
         composeRule.onNodeWithTag(EDIT_BOOK_SHEET_TEST_TAG).assertIsDisplayed()
+        assertEquals(0, repository.removeCallCount)
+    }
+
+    // AC2: no open loan -> no warning in the dialog.
+    @Test
+    fun removeBookDialog_noOpenLoan_noWarning() {
+        repository.byId.value = LibraryBook(book(), null)
+        setContent()
+
+        composeRule.onNodeWithTag(EDIT_BOOK_REMOVE_BUTTON_TEST_TAG).performClick()
+
+        composeRule.onNodeWithTag(com.minicore.bookshelf.features.library.ui.removebook.REMOVE_BOOK_OPEN_LOAN_WARNING_TEST_TAG)
+            .assertDoesNotExist()
+    }
+
+    // AC2: an open loan shows the warning with the borrower's name, Confirm stays enabled, and
+    // confirming still calls removeBook exactly once - the warning informs, it never blocks.
+    @Test
+    fun removeBookDialog_openLoan_showsWarning_confirmStillRemoves() {
+        val loan = OpenLoan(loanId = 1L, borrowerName = "Alex", loanedAt = Instant.EPOCH, dueAt = LocalDate.of(2026, 11, 1))
+        repository.byId.value = LibraryBook(book(), loan)
+        setContent()
+
+        composeRule.onNodeWithTag(EDIT_BOOK_REMOVE_BUTTON_TEST_TAG).performClick()
+        composeRule.onNodeWithTag(com.minicore.bookshelf.features.library.ui.removebook.REMOVE_BOOK_OPEN_LOAN_WARNING_TEST_TAG)
+            .assertIsDisplayed()
+        composeRule.onNodeWithText("Alex", substring = true).assertIsDisplayed()
+
+        composeRule.onNodeWithTag(com.minicore.bookshelf.features.library.ui.removebook.REMOVE_BOOK_CONFIRM_BUTTON_TEST_TAG)
+            .assertIsEnabled().performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(1, repository.removeCallCount)
+    }
+
+    // AC1/AC2: confirming with no open loan calls removeBook exactly once.
+    @Test
+    fun removeBookDialog_confirmWithNoOpenLoan_callsRemoveOnce() {
+        repository.byId.value = LibraryBook(book(), null)
+        setContent()
+
+        composeRule.onNodeWithTag(EDIT_BOOK_REMOVE_BUTTON_TEST_TAG).performClick()
+        composeRule.onNodeWithTag(com.minicore.bookshelf.features.library.ui.removebook.REMOVE_BOOK_CONFIRM_BUTTON_TEST_TAG)
+            .performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(1, repository.removeCallCount)
+    }
+
+    // AC4/R4: Cancel, outside tap (onDismissRequest) and system back on the confirm dialog are
+    // all a no-op - unsaved edits survive, and removeBook is never called.
+    @Test
+    fun removeBookDialog_cancel_leavesUnsavedEditsIntact_noRemoveCall() {
+        repository.byId.value = LibraryBook(book(), null)
+        setContent()
+
+        composeRule.onNodeWithTag(BOOK_FORM_TITLE_FIELD_TEST_TAG).performTextClearance()
+        composeRule.onNodeWithTag(BOOK_FORM_TITLE_FIELD_TEST_TAG).performTextInput("Dune II")
+        composeRule.onNodeWithTag(EDIT_BOOK_REMOVE_BUTTON_TEST_TAG).performClick()
+
+        composeRule.onNodeWithTag(com.minicore.bookshelf.features.library.ui.removebook.REMOVE_BOOK_CANCEL_BUTTON_TEST_TAG)
+            .performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(com.minicore.bookshelf.features.library.ui.removebook.REMOVE_BOOK_DIALOG_TEST_TAG)
+            .assertDoesNotExist()
+        composeRule.onNodeWithTag(EDIT_BOOK_SHEET_TEST_TAG).assertIsDisplayed()
+        composeRule.onNodeWithText("Dune II").assertIsDisplayed()
+        assertEquals(0, repository.removeCallCount)
+    }
+
+    // AC4/R4: the Edit sheet's own BackHandler is disabled while the confirm dialog shows, so a
+    // system back dismisses only the dialog (via its own onDismissRequest), not the sheet.
+    @Test
+    fun removeBookDialog_systemBack_dismissesDialogOnly_sheetStaysOpen() {
+        repository.byId.value = LibraryBook(book(), null)
+        var result: EditBookResult? = null
+        setContent(onDone = { result = it })
+
+        composeRule.onNodeWithTag(EDIT_BOOK_REMOVE_BUTTON_TEST_TAG).performClick()
+        androidx.test.espresso.Espresso.pressBack()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(com.minicore.bookshelf.features.library.ui.removebook.REMOVE_BOOK_DIALOG_TEST_TAG)
+            .assertDoesNotExist()
+        composeRule.onNodeWithTag(EDIT_BOOK_SHEET_TEST_TAG).assertIsDisplayed()
+        assertEquals(0, repository.removeCallCount)
+        assertNull(result)
+    }
+
+    // R8 (should): RemoveFailed shows in the error slot and re-enables the controls, and a retry
+    // succeeds.
+    @Test
+    fun removeFails_showsErrorInSlot_reEnablesControls_retrySucceeds() {
+        repository.byId.value = LibraryBook(book(), null)
+        repository.failRemove = true
+        var result: EditBookResult? = null
+        setContent(onDone = { result = it })
+
+        composeRule.onNodeWithTag(EDIT_BOOK_REMOVE_BUTTON_TEST_TAG).performClick()
+        composeRule.onNodeWithTag(com.minicore.bookshelf.features.library.ui.removebook.REMOVE_BOOK_CONFIRM_BUTTON_TEST_TAG)
+            .performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(EDIT_BOOK_REMOVE_FAILED_TEST_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(EDIT_BOOK_REMOVE_BUTTON_TEST_TAG).assertIsEnabled()
+        assertNull(result)
+
+        repository.failRemove = false
+        composeRule.onNodeWithTag(EDIT_BOOK_REMOVE_BUTTON_TEST_TAG).performClick()
+        composeRule.onNodeWithTag(com.minicore.bookshelf.features.library.ui.removebook.REMOVE_BOOK_CONFIRM_BUTTON_TEST_TAG)
+            .performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(EditBookResult.Removed, result)
     }
 
     // AC3/F6: the Borrowing checkbox reflects the live loan state, both directions, and stays
@@ -270,6 +408,7 @@ class EditBookRouteTest {
         val viewModel = EditBookViewModel(
             ObserveBookDetailUseCase(repository, CurrentDateProvider(Provider { clock })),
             UpdateBookUseCase(repository, coverImages),
+            RemoveBookUseCase(repository, coverImages),
             coverImages,
             clock,
             SavedStateHandle(mapOf("bookId" to 1L)),
@@ -280,7 +419,7 @@ class EditBookRouteTest {
                     .then(DeviceConfigurationOverride.ForcedSize(DpSize(320.dp, 800.dp))),
             ) {
                 BookshelfTheme {
-                    EditBookRoute(onDone = {}, onRemoveClick = {}, viewModel = viewModel)
+                    EditBookRoute(onDone = {}, viewModel = viewModel)
                 }
             }
         }
