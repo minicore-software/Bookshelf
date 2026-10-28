@@ -3,7 +3,9 @@ package com.minicore.bookshelf.features.library.domain
 import com.minicore.bookshelf.core.coverimage.CoverImageStore
 import com.minicore.bookshelf.core.model.Cover
 import javax.inject.Inject
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
 
 /** [RemoveBookUseCase]'s outcome (plan #34 section 4.2). */
 sealed interface RemoveBookResult {
@@ -22,6 +24,12 @@ sealed interface RemoveBookResult {
  * throw propagates and no file is touched; (3) only after success, if the removed book's cover
  * was [Cover.Image], delete the stored file (idempotent, never throws). Never touches a draft -
  * draft cleanup belongs to the caller's UI state.
+ *
+ * Step 3 runs inside [NonCancellable] (review finding): the row is already gone by then, so a
+ * cancellation racing the delete call (e.g. the caller's `viewModelScope` cleared between the row
+ * delete and this coroutine resuming - the exact Detail/Edit pop race plan #34 R7/R8 describes)
+ * must not leave the file orphaned. ADR-003's "delete the file after the row delete" promise
+ * only holds if this step cannot be skipped once the row delete has committed.
  */
 class RemoveBookUseCase @Inject constructor(
     private val repository: LibraryRepository,
@@ -33,7 +41,7 @@ class RemoveBookUseCase @Inject constructor(
         if (!repository.removeBook(bookId)) return RemoveBookResult.NotFound
 
         val cover = current.cover
-        if (cover is Cover.Image) coverImages.delete(cover.uri)
+        if (cover is Cover.Image) withContext(NonCancellable) { coverImages.delete(cover.uri) }
 
         return RemoveBookResult.Removed
     }

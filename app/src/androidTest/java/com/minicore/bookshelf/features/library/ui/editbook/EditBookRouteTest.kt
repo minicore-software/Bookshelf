@@ -8,6 +8,9 @@ import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -176,7 +179,12 @@ class EditBookRouteTest {
 
         composeRule.onNodeWithTag(com.minicore.bookshelf.features.library.ui.removebook.REMOVE_BOOK_DIALOG_TEST_TAG)
             .assertIsDisplayed()
-        composeRule.onNodeWithText("Dune", substring = true).assertIsDisplayed()
+        // Scoped to the dialog's own subtree: the title field behind it also contains "Dune"
+        // (the in-progress "Dune II" edit), so an unscoped text query would match both nodes and
+        // would not actually prove which title the dialog shows.
+        val insideDialog = hasAnyAncestor(hasTestTag(com.minicore.bookshelf.features.library.ui.removebook.REMOVE_BOOK_DIALOG_TEST_TAG))
+        composeRule.onNode(hasText("Dune", substring = true) and insideDialog).assertIsDisplayed()
+        composeRule.onNode(hasText("Dune II", substring = true) and insideDialog).assertDoesNotExist()
         composeRule.onNodeWithTag(EDIT_BOOK_SHEET_TEST_TAG).assertIsDisplayed()
         assertEquals(0, repository.removeCallCount)
     }
@@ -249,8 +257,10 @@ class EditBookRouteTest {
         assertEquals(0, repository.removeCallCount)
     }
 
-    // AC4/R4: the Edit sheet's own BackHandler is disabled while the confirm dialog shows, so a
-    // system back dismisses only the dialog (via its own onDismissRequest), not the sheet.
+    // AC4/R4: system back while the confirm dialog shows dismisses only the dialog. The dialog's
+    // own window consumes the back event first (standard AlertDialog/Dialog behavior - it is
+    // above the sheet in the window stack), so the sheet's own BackHandler (which stays enabled;
+    // it is only gated on isSaving/isRemoving, not on the dialog) never even sees this back press.
     @Test
     fun removeBookDialog_systemBack_dismissesDialogOnly_sheetStaysOpen() {
         repository.byId.value = LibraryBook(book(), null)

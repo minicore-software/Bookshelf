@@ -119,7 +119,11 @@ fun BookshelfNavGraph(navController: NavHostController) {
                 // row is gone. Removed (plan #34 decision R8) pops Edit *and* Detail together by
                 // popping Detail inclusive; if that returns false (Detail already self-popped,
                 // e.g. its own NotFound close won a race), fall back to popping Edit alone so it
-                // never stays open on a deleted book.
+                // never stays open on a deleted book. In practice this fallback branch is
+                // defence-in-depth, not a reachable gap: Edit is only ever pushed on top of
+                // Detail, so if Detail has already self-popped inclusive, Edit went with it -
+                // the fallback's own popBackStack(EditBook, inclusive) then also finds nothing
+                // and is itself a safe no-op, landing on Home either way.
                 onDone = { result ->
                     if (result == EditBookResult.Removed) {
                         if (!navController.popBackStack(BookshelfDestinations.BookDetail.route, inclusive = true)) {

@@ -106,6 +106,11 @@ class EditBookEndToEndTest {
     @After
     fun tearDown() {
         database.close()
+        // Cleans up the real on-disk cover file the remove test writes directly (not through
+        // CoverImageStore) - a failed assertion before the test's own delete check would
+        // otherwise leave it on disk for the next instrumented run on the same device.
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        java.io.File(context.filesDir, "covers/11111111-1111-1111-1111-111111111111.jpg").delete()
     }
 
     private fun setContent(): TestNavHostController {
