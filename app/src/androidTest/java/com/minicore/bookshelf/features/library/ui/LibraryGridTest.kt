@@ -1,6 +1,7 @@
 package com.minicore.bookshelf.features.library.ui
 
 import androidx.compose.material3.Surface
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
@@ -27,9 +28,11 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeUp
 import androidx.compose.ui.test.then
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
+import androidx.test.espresso.Espresso
 import com.minicore.bookshelf.core.designsystem.BookshelfTheme
 import com.minicore.bookshelf.core.designsystem.component.BOOK_COVER_TEST_TAG_PREFIX
 import com.minicore.bookshelf.core.model.Book
@@ -360,6 +363,57 @@ class LibraryGridTest {
         composeRule.onAllNodesWithTag(LIBRARY_CARD_MENU_TEST_TAG).assertCountEquals(0)
     }
 
+    // F3 (K1): long-press, then release without moving - the menu opens and there is no
+    // navigation (release alone must never also fire the tap).
+    @Test
+    fun longPressThenRelease_opensMenuOnly_noNavigation() {
+        val clicked = mutableListOf<Long>()
+        val counts = LibraryCounts(all = 1, reading = 1, finished = 0, wantToRead = 0, lentOut = 0)
+        setContent(LibraryGrid(LibraryFilter.All, counts, listOf(LibraryBook(book(1), null))), onBookClick = { clicked += it })
+
+        composeRule.onNodeWithTag(libraryGridCardTag(1)).performTouchInput {
+            down(center)
+            advanceEventTime(600)
+            up()
+        }
+
+        composeRule.onNodeWithTag(LIBRARY_CARD_MENU_TEST_TAG).assertIsDisplayed()
+        assertTrue(clicked.isEmpty())
+    }
+
+    // F4 (K1): a press that drags off the card before the long-press timer fires cancels the
+    // long-press (standard touch-slop behaviour) - neither the menu nor navigation happens.
+    @Test
+    fun longPressThenDragOff_opensNeitherMenuNorNavigation() {
+        val clicked = mutableListOf<Long>()
+        val counts = LibraryCounts(all = 1, reading = 1, finished = 0, wantToRead = 0, lentOut = 0)
+        setContent(LibraryGrid(LibraryFilter.All, counts, listOf(LibraryBook(book(1), null))), onBookClick = { clicked += it })
+
+        composeRule.onNodeWithTag(libraryGridCardTag(1)).performTouchInput {
+            down(center)
+            moveBy(Offset(100f, 0f))
+            up()
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onAllNodesWithTag(LIBRARY_CARD_MENU_TEST_TAG).assertCountEquals(0)
+        assertTrue("a drag off the card must never navigate either", clicked.isEmpty())
+    }
+
+    // F5 (K2): a scroll/fling gesture starting on a card must never open its menu.
+    @Test
+    fun scrollGestureStartingOnACard_opensNoMenu() {
+        val clicked = mutableListOf<Long>()
+        val counts = LibraryCounts(all = 1, reading = 1, finished = 0, wantToRead = 0, lentOut = 0)
+        setContent(LibraryGrid(LibraryFilter.All, counts, listOf(LibraryBook(book(1), null))), onBookClick = { clicked += it })
+
+        composeRule.onNodeWithTag(libraryGridCardTag(1)).performTouchInput { swipeUp() }
+        composeRule.waitForIdle()
+
+        composeRule.onAllNodesWithTag(LIBRARY_CARD_MENU_TEST_TAG).assertCountEquals(0)
+        assertTrue(clicked.isEmpty())
+    }
+
     // F6 (AC2): tapping "⋮" opens the very same menu tag, and does not navigate to Detail.
     @Test
     fun tappingOverflowButton_opensSameMenu_doesNotNavigate() {
@@ -381,10 +435,11 @@ class LibraryGridTest {
         assertEquals(listOf(1L), removed)
     }
 
-    // F9 (plan security notes): tapping outside the popover closes it with no side effect - the
-    // remove callback is never invoked.
+    // F9 (plan security notes): dismissing the popover (system back - the DropdownMenu's own
+    // Popup window is what actually listens for this, not a tap on a node in the host window's
+    // tree) closes it with no side effect - the remove callback is never invoked.
     @Test
-    fun tappingOutsideTheOpenMenu_closesIt_noRemoveCallback() {
+    fun dismissingTheOpenMenu_closesIt_noRemoveCallback() {
         val removed = mutableListOf<Long>()
         val counts = LibraryCounts(all = 1, reading = 1, finished = 0, wantToRead = 0, lentOut = 0)
         setContent(
@@ -395,7 +450,11 @@ class LibraryGridTest {
         composeRule.onNodeWithTag(libraryGridCardTag(1)).performTouchInput { longClick() }
         composeRule.onNodeWithTag(LIBRARY_CARD_MENU_TEST_TAG).assertIsDisplayed()
 
-        composeRule.onNodeWithTag(LIBRARY_GRID_TITLE_TEST_TAG).performClick()
+        // The DropdownMenu lives in its own popup window, so a `performClick()` on a node in the
+        // host window's tree never reaches it (reviewer finding, confirmed on-device) - system
+        // back is the dismiss route the popup itself actually listens for.
+        Espresso.pressBack()
+        composeRule.waitForIdle()
 
         composeRule.onAllNodesWithTag(LIBRARY_CARD_MENU_TEST_TAG).assertCountEquals(0)
         assertTrue(removed.isEmpty())
@@ -444,6 +503,78 @@ class LibraryGridTest {
 
         composeRule.onAllNodesWithTag(LIBRARY_CARD_MENU_TEST_TAG).assertCountEquals(1)
         composeRule.onNodeWithTag(libraryGridCardMenuButtonTag(2), useUnmergedTree = true).assertExists()
+    }
+
+    // F7/K3: at 320dp width and 2x font scale, tapping the cover centre still opens Detail (the
+    // "⋮" must never steal the cover's own taps).
+    @Test
+    fun atNarrowWidthAndDoubleFontScale_tapOnCover_stillOpensDetail() {
+        val clicked = mutableListOf<Long>()
+        val counts = LibraryCounts(all = 1, reading = 1, finished = 0, wantToRead = 0, lentOut = 0)
+        composeRule.setContent {
+            DeviceConfigurationOverride(
+                DeviceConfigurationOverride.FontScale(2f).then(DeviceConfigurationOverride.ForcedSize(DpSize(320.dp, 800.dp))),
+            ) {
+                BookshelfTheme {
+                    Surface {
+                        LibraryScreen(
+                            uiState = LibraryUiState.Content(
+                                LibraryRows(emptyList(), emptyList()),
+                                LibraryGrid(LibraryFilter.All, counts, listOf(LibraryBook(book(1, "Sapiens"), null))),
+                            ),
+                            onBookClick = { clicked += it },
+                        )
+                    }
+                }
+            }
+        }
+
+        composeRule.onNode(
+            hasTestTag(BOOK_COVER_TEST_TAG_PREFIX + "1") and hasAnyAncestor(hasTestTag(libraryGridCardTag(1))),
+            useUnmergedTree = true,
+        ).performClick()
+
+        assertEquals(listOf(1L), clicked)
+        composeRule.onAllNodesWithTag(LIBRARY_CARD_MENU_TEST_TAG).assertCountEquals(0)
+    }
+
+    // F8/K3/plan §5 "Layout stability": at 320dp/2x font, tapping "⋮" opens the menu (not
+    // Detail), and the "⋮" bounds never intersect the status dot's bounds.
+    @Test
+    fun atNarrowWidthAndDoubleFontScale_tapOnOverflowButton_opensMenu_neverOverlapsStatusDot() {
+        val clicked = mutableListOf<Long>()
+        val counts = LibraryCounts(all = 1, reading = 1, finished = 0, wantToRead = 0, lentOut = 0)
+        composeRule.setContent {
+            DeviceConfigurationOverride(
+                DeviceConfigurationOverride.FontScale(2f).then(DeviceConfigurationOverride.ForcedSize(DpSize(320.dp, 800.dp))),
+            ) {
+                BookshelfTheme {
+                    Surface {
+                        LibraryScreen(
+                            uiState = LibraryUiState.Content(
+                                LibraryRows(emptyList(), emptyList()),
+                                LibraryGrid(LibraryFilter.All, counts, listOf(LibraryBook(book(1, "Sapiens"), null))),
+                            ),
+                            onBookClick = { clicked += it },
+                        )
+                    }
+                }
+            }
+        }
+
+        val menuButtonBounds = composeRule.onNodeWithTag(libraryGridCardMenuButtonTag(1), useUnmergedTree = true)
+            .fetchSemanticsNode().boundsInRoot
+        val statusDotBounds = composeRule.onNodeWithTag(libraryGridStatusDotTag(1), useUnmergedTree = true)
+            .fetchSemanticsNode().boundsInRoot
+        assertTrue(
+            "the ⋮ touch target must never overlap the status dot at 320dp/2x font",
+            menuButtonBounds.right <= statusDotBounds.left || statusDotBounds.right <= menuButtonBounds.left,
+        )
+
+        composeRule.onNodeWithTag(libraryGridCardMenuButtonTag(1), useUnmergedTree = true).performClick()
+
+        composeRule.onNodeWithTag(LIBRARY_CARD_MENU_TEST_TAG).assertIsDisplayed()
+        assertTrue(clicked.isEmpty())
     }
 }
 

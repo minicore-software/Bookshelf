@@ -95,7 +95,10 @@ class LibraryViewModel @Inject constructor(
     }
 
     /** No-op if [bookId] is not in the currently-loaded grid, or a remove is already in flight
-     * (plan L6/L7). */
+     * (plan L6/L7). The latter is an accepted, deliberately silent drop: the window is the
+     * single in-flight remove's own duration, there is nothing useful to say beyond what the
+     * disappearing card already communicates, and surfacing a second signal here would compete
+     * with the one that matters (the eventual [LibraryEvent.RemoveFailed] Snackbar, if any). */
     fun onRemoveRequested(bookId: Long) {
         if (isRemoving) return
         val content = uiState.value as? LibraryUiState.Content ?: return

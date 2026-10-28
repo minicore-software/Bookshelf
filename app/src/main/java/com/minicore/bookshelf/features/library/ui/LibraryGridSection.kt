@@ -74,7 +74,10 @@ fun libraryFilterChipTag(filter: LibraryFilter) = "library_filter_chip_$filter"
 fun libraryGridCardTag(bookId: Long) = "library_grid_card_$bookId"
 fun libraryGridLentCaptionTag(bookId: Long) = "library_grid_lent_caption_$bookId"
 fun libraryGridStatusDotTag(bookId: Long) = "library_grid_status_dot_$bookId"
-fun libraryGridCardMenuButtonTag(bookId: Long) = "library_grid_card_menu_button_$bookId"
+// Deliberately does NOT share the "library_grid_card_" prefix with `libraryGridCardTag` -
+// LibraryGridFilteringTest counts nodes by that exact prefix, and a shared prefix doubled its
+// count on a real device (reviewer finding).
+fun libraryGridCardMenuButtonTag(bookId: Long) = "library_card_menu_button_$bookId"
 
 @Composable
 private fun filterLabel(filter: LibraryFilter, count: Int): String {
@@ -297,7 +300,10 @@ fun LibraryGridCard(
         }
 
         // L1: one popover, one item, reused verbatim by both triggers (UX spec §"Screens/
-        // components"/2).
+        // components"/2). The 6dp "padding around the menu content" (§7.3) is applied to the
+        // item itself, inside the popover's rounded Surface - putting it on this composable's
+        // own `modifier` instead would sit *outside* the Surface (an invisible margin in the
+        // popup window, not breathing room around the content; design-QA finding).
         DropdownMenu(
             expanded = menuExpanded,
             onDismissRequest = { menuExpanded = false },
@@ -307,7 +313,6 @@ fun LibraryGridCard(
             tonalElevation = 0.dp,
             modifier = Modifier
                 .defaultMinSize(minWidth = 180.dp)
-                .padding(6.dp)
                 .testTag(LIBRARY_CARD_MENU_TEST_TAG),
         ) {
             DropdownMenuItem(
@@ -322,7 +327,9 @@ fun LibraryGridCard(
                     menuExpanded = false
                     onRemoveBookRequest(book.id)
                 },
-                modifier = Modifier.testTag(LIBRARY_CARD_MENU_REMOVE_TEST_TAG),
+                modifier = Modifier
+                    .padding(6.dp)
+                    .testTag(LIBRARY_CARD_MENU_REMOVE_TEST_TAG),
             )
         }
     }
