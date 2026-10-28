@@ -43,6 +43,19 @@ class EditBookSeamTest {
         assertTrue("bookform/ must never import ui.editbook/, found: ${offenders.map { it.path }}", offenders.isEmpty())
     }
 
+    // FF-R3 (plan #34 section 5): removebook/ stays reusable by #35 - it must never import
+    // editbook/ or bookform/.
+    @Test
+    fun removebook_neverImportsEditbookOrBookform() {
+        val offenders = ktFiles("src/main/java/com/minicore/bookshelf/features/library/ui/removebook")
+            .filter { file ->
+                val text = file.readText()
+                text.contains("import com.minicore.bookshelf.features.library.ui.editbook") ||
+                    text.contains("import com.minicore.bookshelf.features.library.ui.bookform")
+            }
+        assertTrue("removebook/ must never import editbook/ or bookform/, found: ${offenders.map { it.path }}", offenders.isEmpty())
+    }
+
     // FF-E3/D13: no file under ui/editbook/, and not UpdateBookUseCase.kt, references a loan
     // write path or the generic book-insert write path.
     @Test
