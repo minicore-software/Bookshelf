@@ -366,6 +366,43 @@ class EditBookViewModelTest {
         assertEquals(listOf(EditBookResult.NotFound), results)
     }
 
+    // Review finding #2: an in-progress CoverDraft.Image draft must not leak into
+    // cache/cover-drafts/ when the row vanishes while it is selected.
+    @Test
+    fun rowDeletedWhileAnImageDraftIsSelected_discardsTheDraft() = editBookTest {
+        repository.byId.value = LibraryBook(populatedBook(1L), null)
+        val vm = viewModel(bookId = 1L)
+        dispatcher.scheduler.runCurrent()
+
+        vm.onImagePicked("content://new-photo")
+        dispatcher.scheduler.runCurrent()
+        assertEquals(CoverDraft.Image(coverImages.nextDraftRef), vm.uiState.value.cover)
+
+        repository.byId.value = null
+        dispatcher.scheduler.runCurrent()
+
+        assertEquals(listOf(coverImages.nextDraftRef), coverImages.discarded)
+    }
+
+    // Review finding #2: the same leak, reached through a failed save (updateBook returns false)
+    // rather than a live Room re-emission.
+    @Test
+    fun saveReturnsNotFoundWhileAnImageDraftIsSelected_discardsTheDraft() = editBookTest {
+        repository.updateReturnsFalse = true
+        repository.byId.value = LibraryBook(populatedBook(1L), null)
+        val vm = viewModel(bookId = 1L)
+        dispatcher.scheduler.runCurrent()
+
+        vm.onImagePicked("content://new-photo")
+        dispatcher.scheduler.runCurrent()
+        assertEquals(CoverDraft.Image(coverImages.nextDraftRef), vm.uiState.value.cover)
+
+        vm.onSave()
+        dispatcher.scheduler.runCurrent()
+
+        assertTrue(coverImages.discarded.contains(coverImages.nextDraftRef))
+    }
+
     // F19: process-death restore round-trips every field via SavedStateHandle.
     @Test
     fun restoredFromSavedStateHandle_roundTripsFields() = editBookTest {
@@ -441,6 +478,40 @@ class EditBookViewModelTest {
         dispatcher.scheduler.runCurrent()
 
         assertEquals(CoverDraft.Stored("covers/original.jpg"), restored.uiState.value.cover)
+    }
+
+    // Review finding #3: if the user picks a new cover before the purged-draft fallback resolves
+    // (process-death restore racing a slow upstream), the fallback must not clobber that newer
+    // choice once it finally resolves.
+    @Test
+    fun purgedDraftFallback_doesNotClobberANewerUserSelection_madeBeforeItResolves() = editBookTest {
+        val savedStateHandle = SavedStateHandle(
+            mapOf(
+                "bookId" to 1L,
+                "seeded" to true,
+                "title" to "Dune",
+                "cover_draft_ref" to "cover-drafts/does-not-exist.jpg",
+            ),
+        )
+        coverImages.draftExists = false
+        repository.emissionDelayMillis = 1_000
+        repository.byId.value = LibraryBook(populatedBook(1L), null)
+
+        val restored = viewModel(bookId = 1L, savedStateHandle = savedStateHandle)
+        dispatcher.scheduler.runCurrent()
+        assertEquals(CoverDraft.Image("cover-drafts/does-not-exist.jpg"), restored.uiState.value.cover)
+
+        // The user picks a preset while the fallback coroutine is still waiting on the upstream.
+        restored.onPresetSelected(CoverPreset.Preset3)
+        assertEquals(CoverDraft.Preset(CoverPreset.Preset3), restored.uiState.value.cover)
+
+        // Now let the upstream (and the fallback waiting on it) resolve.
+        dispatcher.scheduler.advanceTimeBy(1_000)
+        dispatcher.scheduler.runCurrent()
+
+        // The fallback must see that the cover is no longer the stale restored draft and leave
+        // the user's newer choice alone.
+        assertEquals(CoverDraft.Preset(CoverPreset.Preset3), restored.uiState.value.cover)
     }
 
     // Cancel/Remove/preset-select after a Stored cover never touches the stored file (E5).
