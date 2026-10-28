@@ -19,10 +19,13 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.Clock
 import java.time.Year
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
@@ -84,8 +87,7 @@ class EditBookViewModel @Inject constructor(
     /** `null` while the one-and-only upstream subscription has not emitted yet, distinct from a
      * real "the row is gone" emission ([Loaded] wrapping a `null` [Loaded.detail]) - `stateIn`'s
      * synthetic initial value must never be mistaken for [ObserveBookDetailUseCase] itself saying
-     * the book does not exist. [originalCoverDraft] reads [bookDetail]'s current value
-     * synchronously instead of re-subscribing. */
+     * the book does not exist. */
     private data class Loaded(val detail: BookDetail?)
 
     private val bookDetail: StateFlow<Loaded?> =
@@ -96,9 +98,15 @@ class EditBookViewModel @Inject constructor(
         if (restoredCover is CoverDraft.Image) {
             viewModelScope.launch {
                 // F19: a draft file purged from the cache (process death survived longer than the
-                // cache entry) falls back to the book's own original cover, never a preset.
+                // cache entry) falls back to the book's own original cover, never a preset. Waits
+                // for the first *real* upstream emission before falling back - reading
+                // `bookDetail.value` synchronously here would race Room's first emission: if the
+                // file-exists check resolves first, `bookDetail.value` is still the synthetic
+                // `null` initial value, so the fallback would silently become a wrong preset, and
+                // a later Save would delete the book's real original cover file.
+                val original = bookDetail.filterNotNull().first().detail?.book?.cover?.toCoverDraft() ?: return@launch
                 if (!coverImages.exists(restoredCover.draftRef)) {
-                    update { it.copy(cover = originalCoverDraft()) }
+                    update { it.copy(cover = original) }
                 }
             }
         }
@@ -133,11 +141,6 @@ class EditBookViewModel @Inject constructor(
         } else {
             _uiState.value = _uiState.value.copy(isLentOut = detail.loan != null, initialDraft = draft)
         }
-    }
-
-    private fun originalCoverDraft(): CoverDraft {
-        val book = bookDetail.value?.detail?.book ?: return CoverDraft.Preset(lastPreset())
-        return book.cover.toCoverDraft()
     }
 
     private fun restoreInitialState(): EditBookUiState {
@@ -286,6 +289,8 @@ class EditBookViewModel @Inject constructor(
                     UpdateBookResult.Updated -> emitResult(EditBookResult.Saved)
                     UpdateBookResult.NotFound -> emitResult(EditBookResult.NotFound)
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 update { it.copy(isSaving = false, error = EditBookError.SaveFailed) }
             }

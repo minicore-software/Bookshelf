@@ -139,7 +139,8 @@ class EditBookEndToEndTest {
 
         composeRule.onNodeWithTag(BOOK_DETAIL_SHEET_TEST_TAG).assertIsDisplayed()
         composeRule.onNodeWithText("Dune Messiah").assertIsDisplayed()
-        assertEquals(BookshelfDestinations.BookDetail.route(bookId), navController.currentDestination?.route)
+        assertEquals(BookshelfDestinations.BookDetail.route, navController.currentDestination?.route)
+        assertEquals(bookId, navController.currentBackStackEntry?.arguments?.getLong(BookshelfDestinations.BookDetail.ARG_BOOK_ID))
     }
 
     // F25/R9: Cancel on Edit stacked over Detail lands back on Detail, not Home.
@@ -154,7 +155,30 @@ class EditBookEndToEndTest {
             allNodesWithTag(EDIT_BOOK_SHEET_TEST_TAG).fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
         }
         composeRule.onNodeWithTag(BOOK_DETAIL_SHEET_TEST_TAG).assertIsDisplayed()
-        assertEquals(BookshelfDestinations.BookDetail.route(bookId), navController.currentDestination?.route)
+        assertEquals(BookshelfDestinations.BookDetail.route, navController.currentDestination?.route)
+        assertEquals(bookId, navController.currentBackStackEntry?.arguments?.getLong(BookshelfDestinations.BookDetail.ARG_BOOK_ID))
+    }
+
+    // F18: navigating to EditBook for the same book twice (a double tap on the Detail pencil)
+    // never stacks two editors - `launchSingleTop` (navigation/EditBookNavigation.kt) collapses
+    // the second navigation into the existing back-stack entry.
+    @Test
+    fun navigatingToEditBookTwice_doesNotStackTwoEditors() {
+        val navController = setContent()
+        navController.navigate(BookshelfDestinations.BookDetail.route(bookId))
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            allNodesWithTag(BOOK_DETAIL_SHEET_TEST_TAG).fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+        }
+
+        composeRule.runOnIdle { navController.navigateToEditBook(bookId) }
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            allNodesWithTag(EDIT_BOOK_SHEET_TEST_TAG).fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+        }
+        composeRule.runOnIdle { navController.navigateToEditBook(bookId) }
+        composeRule.waitForIdle()
+
+        val editEntries = navController.currentBackStack.value.count { it.destination.route == BookshelfDestinations.EditBook.route }
+        assertEquals(1, editEntries)
     }
 
     private object TestDatabaseHolder {
