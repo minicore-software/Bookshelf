@@ -151,6 +151,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   "Couldn't save your changes. Try again.". A "Remove book" button is
   present (destructive-styled, left of Cancel/Save) but is a no-op this
   release - #34 wires its confirmation and the actual delete. (#33)
+- Remove a book: the Edit sheet's "Remove book" button now opens a confirm
+  dialog (shared with the Library grid's future delete action) naming the
+  book and, when it currently has an open loan, warning that removing it
+  also deletes the loan record - the warning never blocks confirming.
+  Confirming cascade-deletes the book row and its loan history in one
+  database statement (the existing `loans.book_id -> books.id ON DELETE
+  CASCADE` foreign key) and deletes the book's stored cover file, then
+  returns straight to Library, closing both Edit and Book Detail at once.
+  Cancel, an outside tap and system back on the dialog are all a no-op -
+  any unsaved edits in the sheet survive untouched. A failed removal shows
+  "Couldn't remove this book. Try again." and re-enables the sheet for a
+  retry. (#34)
 
 ### Changed
 - **Internal, no end-user-visible change:** extended the `books` table (Room
