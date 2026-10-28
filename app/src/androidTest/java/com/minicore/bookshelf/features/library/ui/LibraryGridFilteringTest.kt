@@ -236,4 +236,5 @@ class StatusAwareFakeLibraryRepository @Inject constructor() : LibraryRepository
     override suspend fun addBook(book: Book): Long = throw NotImplementedError()
 
     override suspend fun updateBook(book: Book): Boolean = throw NotImplementedError()
+    override suspend fun removeBook(id: Long): Boolean = throw NotImplementedError()
 }

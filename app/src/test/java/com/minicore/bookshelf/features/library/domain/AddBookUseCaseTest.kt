@@ -41,6 +41,7 @@ private class AddBookFakeLibraryRepository : LibraryRepository {
     }
 
     override suspend fun updateBook(book: Book): Boolean = throw NotImplementedError()
+    override suspend fun removeBook(id: Long): Boolean = throw NotImplementedError()
 }
 
 /**

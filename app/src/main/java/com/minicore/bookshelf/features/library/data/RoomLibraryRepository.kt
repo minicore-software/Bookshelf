@@ -46,4 +46,7 @@ class RoomLibraryRepository @Inject constructor(
 
     override suspend fun updateBook(book: Book): Boolean =
         bookDao.update(book.toEntity()) != 0
+
+    override suspend fun removeBook(id: Long): Boolean =
+        bookDao.deleteById(id) != 0
 }

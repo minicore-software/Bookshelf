@@ -60,6 +60,7 @@ private class FakeLibraryRepository : LibraryRepository {
     override suspend fun addBook(book: Book): Long = throw NotImplementedError()
 
     override suspend fun updateBook(book: Book): Boolean = throw NotImplementedError()
+    override suspend fun removeBook(id: Long): Boolean = throw NotImplementedError()
 }
 
 /** AC1/AC2 (plan section 6): the use case combines the repository's flows verbatim, per date. */
