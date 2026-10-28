@@ -9,8 +9,10 @@ import com.minicore.bookshelf.features.library.domain.model.LentBook
 import com.minicore.bookshelf.features.library.domain.model.LibraryBook
 import com.minicore.bookshelf.features.library.domain.model.LibraryCounts
 import java.time.Instant
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -39,6 +41,11 @@ private class RemoveBookFakeLibraryRepository(initial: Book?) : LibraryRepositor
     var removeReturnsFalse = false
     var removeThrows = false
 
+    /** Invoked right after the row delete succeeds, before returning - lets a test simulate the
+     * caller's job being cancelled in the exact window between the row delete and the cover file
+     * delete. */
+    var afterSuccessfulRemove: (() -> Unit)? = null
+
     override fun observeBooks(status: BookStatus?): Flow<List<LibraryBook>> = throw NotImplementedError()
     override fun observeCurrentlyReading(): Flow<List<LibraryBook>> = throw NotImplementedError()
     override fun observeLentOutBooks(): Flow<List<LentBook>> = throw NotImplementedError()
@@ -53,6 +60,7 @@ private class RemoveBookFakeLibraryRepository(initial: Book?) : LibraryRepositor
         if (removeThrows) throw IllegalStateException("delete failed")
         if (removeReturnsFalse) return false
         row = null
+        afterSuccessfulRemove?.invoke()
         return true
     }
 }
@@ -65,6 +73,10 @@ private class RemoveBookFakeCoverImageStore : CoverImageStore {
     override suspend fun commit(draftRef: String): String = throw NotImplementedError()
     override suspend fun uncommit(storedRef: String, draftRef: String) = Unit
     override suspend fun delete(storedRef: String) {
+        // A real cancellation checkpoint (mirrors FileCoverImageStore's withContext(ioDispatcher)
+        // dispatcher switch) - without NonCancellable around this call, a cancelled caller job
+        // would throw here instead of completing the delete.
+        kotlinx.coroutines.yield()
         deleted += storedRef
     }
     override suspend fun exists(ref: String): Boolean = true
@@ -142,5 +154,22 @@ class RemoveBookUseCaseTest {
             runBlocking { useCase(42L) }
         }
         assertTrue(coverImages.deleted.isEmpty())
+    }
+
+    // Review finding: a cancellation racing the delete call (e.g. the caller's viewModelScope
+    // cleared right between the row delete and this coroutine resuming - the Detail/Edit pop
+    // race plan #34 R7/R8 describes) must not orphan the cover file. The row is already gone by
+    // then, so step 3 runs in NonCancellable and must still complete.
+    @Test
+    fun callerCancelled_rightAfterTheRowDelete_stillDeletesTheCoverFile() = runTest {
+        val repository = RemoveBookFakeLibraryRepository(baseBook(cover = Cover.Image("covers/old.jpg")))
+        val useCase = RemoveBookUseCase(repository, coverImages)
+        lateinit var job: Job
+        repository.afterSuccessfulRemove = { job.cancel() }
+
+        job = launch { useCase(42L) }
+        job.join()
+
+        assertEquals(listOf("covers/old.jpg"), coverImages.deleted)
     }
 }

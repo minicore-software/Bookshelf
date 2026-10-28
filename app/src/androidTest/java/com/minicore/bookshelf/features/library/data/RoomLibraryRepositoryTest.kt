@@ -228,6 +228,7 @@ class RoomLibraryRepositoryTest {
         insertOpenLoan(bookA, borrowerName = "Still open")
         val bookB = insertBook("B", BookStatus.Reading, 3_000)
         insertOpenLoan(bookB, borrowerName = "Unrelated")
+        assertEquals(2, repository.observeCounts().first().lentOut)
 
         val removed = repository.removeBook(bookA)
 
@@ -237,6 +238,9 @@ class RoomLibraryRepositoryTest {
         assertEquals(0, loansForA)
         assertEquals(bookB, repository.observeBook(bookB).first()?.id)
         assertEquals(1, countLoansForBook(bookB))
+        // A's open loan went with it: lentOut drops by one, not both (bookB's own open loan,
+        // untouched, still counts).
+        assertEquals(1, repository.observeCounts().first().lentOut)
     }
 
     // D8: removeBook on a missing id returns false.

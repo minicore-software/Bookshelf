@@ -313,13 +313,15 @@ class EditBookViewModel @Inject constructor(
     }
 
     /**
-     * Every exit path (Cancel, X, back, scrim) routes here. Ignored while saving or removing,
-     * and single-flight like [onSave]. Discards the current [CoverDraft.Image] draft if any;
-     * never touches a [CoverDraft.Stored] file.
+     * Every exit path (Cancel, X, back, scrim) routes here. Ignored while saving, removing or
+     * importing an image (review finding: a dismiss mid-import could otherwise still write the
+     * draft to `cache/cover-drafts/` after the screen is already gone), and single-flight like
+     * [onSave]. Discards the current [CoverDraft.Image] draft if any; never touches a
+     * [CoverDraft.Stored] file.
      */
     fun onDismissRequest() {
         val state = _uiState.value
-        if (state.isSaving || state.isRemoving || hasRequestedDismiss) return
+        if (state.isSaving || state.isRemoving || state.isImportingImage || hasRequestedDismiss) return
         hasRequestedDismiss = true
         val cover = state.cover
         if (cover is CoverDraft.Image) {
@@ -330,17 +332,19 @@ class EditBookViewModel @Inject constructor(
 
     /**
      * Runs the remove use case single-flight (plan #34 decision R6): a no-op while not loaded,
-     * while saving, while already removing, or once a result was emitted. [isRemoving] is set
-     * synchronously, before any suspend point, so two calls in the same frame can never both
-     * pass the guard. On [RemoveBookResult.Removed], discards the current unsaved
-     * [CoverDraft.Image] draft if any (the use case already deleted the row's own stored cover);
-     * a [CoverDraft.Stored] is never touched here. On [RemoveBookResult.NotFound], defers to
-     * [emitResult]'s own draft discard. On any other exception, re-enables the controls with
-     * [EditBookError.RemoveFailed] so the user can retry.
+     * while saving, while importing an image (review finding: an in-flight import could
+     * otherwise still write its draft file after Remove has already popped the screen), while
+     * already removing, or once a result was emitted. [isRemoving] is set synchronously, before
+     * any suspend point, so two calls in the same frame can never both pass the guard. On
+     * [RemoveBookResult.Removed], discards the current unsaved [CoverDraft.Image] draft if any
+     * (the use case already deleted the row's own stored cover); a [CoverDraft.Stored] is never
+     * touched here. On [RemoveBookResult.NotFound], defers to [emitResult]'s own draft discard.
+     * On any other exception, re-enables the controls with [EditBookError.RemoveFailed] so the
+     * user can retry.
      */
     fun onRemoveConfirmed() {
         val state = _uiState.value
-        if (!state.isLoaded || state.isSaving || state.isRemoving || hasEmittedResult) return
+        if (!state.isLoaded || state.isSaving || state.isImportingImage || state.isRemoving || hasEmittedResult) return
         update { it.copy(isRemoving = true, error = null) }
         viewModelScope.launch {
             try {

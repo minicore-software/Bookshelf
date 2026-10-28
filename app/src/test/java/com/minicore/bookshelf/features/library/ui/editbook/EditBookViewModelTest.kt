@@ -147,7 +147,12 @@ private class EditBookFakeCoverImageStore : CoverImageStore {
     var nextDraftRef = "cover-drafts/11111111-1111-1111-1111-111111111111.jpg"
     var draftExists = true
 
+    /** Completed by a test to control exactly when [importDraft] resumes, so a test can assert
+     * on in-flight `isImportingImage` state before letting the import finish. */
+    var importGate: kotlinx.coroutines.CompletableDeferred<Unit>? = null
+
     override suspend fun importDraft(sourceUri: String): String {
+        importGate?.await()
         if (failImport) throw CoverImportException("decode failed")
         return nextDraftRef
     }
@@ -812,5 +817,49 @@ class EditBookViewModelTest {
         dispatcher.scheduler.runCurrent()
 
         assertEquals(0, repository.removeCallCount)
+    }
+
+    // Review finding: onRemoveConfirmed() is a no-op while an image import is in flight - an
+    // in-flight import completing after Remove already popped the screen would otherwise still
+    // write its draft file to cache/cover-drafts/ with nothing left to clean it up.
+    @Test
+    fun removeConfirmed_whileImportingImage_isNoOp() = editBookTest {
+        repository.byId.value = LibraryBook(populatedBook(1L), null)
+        coverImages.importGate = kotlinx.coroutines.CompletableDeferred()
+        val vm = viewModel(bookId = 1L)
+        dispatcher.scheduler.runCurrent()
+
+        vm.onImagePicked("content://new-photo")
+        dispatcher.scheduler.runCurrent()
+        assertTrue(vm.uiState.value.isImportingImage)
+
+        vm.onRemoveConfirmed()
+        dispatcher.scheduler.runCurrent()
+
+        assertEquals(0, repository.removeCallCount)
+        coverImages.importGate?.complete(Unit)
+    }
+
+    // Review finding: onDismissRequest() is likewise a no-op while an image import is in
+    // flight, for the same reason.
+    @Test
+    fun dismissRequest_whileImportingImage_isNoOp() = editBookTest {
+        repository.byId.value = LibraryBook(populatedBook(1L), null)
+        coverImages.importGate = kotlinx.coroutines.CompletableDeferred()
+        val vm = viewModel(bookId = 1L)
+        dispatcher.scheduler.runCurrent()
+
+        vm.onImagePicked("content://new-photo")
+        dispatcher.scheduler.runCurrent()
+        assertTrue(vm.uiState.value.isImportingImage)
+
+        val results = mutableListOf<EditBookResult>()
+        backgroundScope.launch { vm.onDone.toList(results) }
+
+        vm.onDismissRequest()
+        dispatcher.scheduler.runCurrent()
+
+        assertTrue(results.isEmpty())
+        coverImages.importGate?.complete(Unit)
     }
 }

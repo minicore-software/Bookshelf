@@ -465,8 +465,17 @@ class BookshelfNavGraphTest {
         assertEquals(BookshelfDestinations.BookDetail.route, navController.currentDestination?.route)
     }
 
-    // R6 (plan #34): confirming Remove on Edit (stacked over Detail) pops both at once - the
-    // user lands on Home, not on a dead Detail.
+    // R6/R7 (plan #34 decision R8): confirming Remove on Edit (stacked over Detail) pops both at
+    // once - the user lands on Home, not on a dead Detail. This drives the real onDone handler
+    // in BookshelfNavGraph.kt end to end (not a simulated popBackStack sequence): Detail and Edit
+    // observe the same repository row, so this is also the only realistic way either order of
+    // "Detail self-closes first" vs "Edit's own popBackStack(Detail, inclusive) wins" actually
+    // happens - whichever wins, the handler's fallback (popBackStack(EditBook, inclusive) when
+    // popBackStack(BookDetail, inclusive) returns false) is exercised or made moot, and either
+    // way the assertions below hold. A separate test that calls `navController.popBackStack(...)`
+    // directly to force that race would not exercise the handler in BookshelfNavGraph.kt at all,
+    // so it is deliberately not duplicated here - see the fallback's own KDoc-style comment at
+    // its call site for why it is defence-in-depth rather than a reachable gap.
     @Test
     fun removingABook_popsBothEditAndDetail_landsOnHome() {
         val repo = fakeRepository as FakeLibraryRepository
@@ -496,47 +505,6 @@ class BookshelfNavGraphTest {
         assertEquals(1, navController.currentBackStack.value.count { it.destination.route == BookshelfDestinations.Home.route })
         assertEquals(0, navController.currentBackStack.value.count { it.destination.route == BookshelfDestinations.BookDetail.route })
         assertEquals(0, navController.currentBackStack.value.count { it.destination.route == BookshelfDestinations.EditBook.route })
-    }
-
-    // R7 (plan #34 decision R8): simulates the race where Detail's own NotFound close already
-    // popped Detail (and Edit above it) before the Removed handler's own pop runs - the handler's
-    // first popBackStack(BookDetail, inclusive) then finds nothing, and the fallback
-    // popBackStack(EditBook, inclusive) is itself a safe no-op (also already gone), landing on
-    // Home either way, without a crash.
-    @Test
-    fun removedHandler_whenDetailAlreadySelfPopped_fallbackIsSafeNoOp_landsOnHome() {
-        val repo = fakeRepository as FakeLibraryRepository
-        val readingBook = book(id = 1, status = BookStatus.Reading)
-        repo.allBooks.value = listOf(LibraryBook(readingBook, null))
-
-        lateinit var navController: TestNavHostController
-        composeRule.setContent {
-            navController = TestNavHostController(InstrumentationRegistry.getInstrumentation().targetContext)
-            navController.navigatorProvider.addNavigator(ComposeNavigator())
-            BookshelfTheme { BookshelfNavGraph(navController) }
-        }
-        composeRule.waitForIdle()
-
-        navController.navigateToBookDetail(readingBook.id)
-        composeRule.waitForIdle()
-        navController.navigateToEditBook(readingBook.id)
-        composeRule.waitForIdle()
-
-        // Simulates Detail's own race-winning self-close: pops Detail (and Edit above it) first.
-        composeRule.runOnIdle {
-            navController.popBackStack(BookshelfDestinations.BookDetail.route, true)
-        }
-        composeRule.waitForIdle()
-        assertEquals(BookshelfDestinations.Home.route, navController.currentDestination?.route)
-
-        // The Removed handler's own attempt now finds nothing to pop - both calls are no-ops,
-        // and the app is already correctly on Home.
-        val poppedDetail = navController.popBackStack(BookshelfDestinations.BookDetail.route, true)
-        val poppedEdit = navController.popBackStack(BookshelfDestinations.EditBook.route, true)
-
-        assertEquals(false, poppedDetail)
-        assertEquals(false, poppedEdit)
-        assertEquals(BookshelfDestinations.Home.route, navController.currentDestination?.route)
     }
 
     private fun book(id: Long, status: BookStatus) = Book(
