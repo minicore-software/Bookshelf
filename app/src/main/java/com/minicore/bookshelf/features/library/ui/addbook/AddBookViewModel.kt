@@ -8,6 +8,7 @@ import com.minicore.bookshelf.core.coverimage.CoverImportException
 import com.minicore.bookshelf.core.model.CoverPreset
 import com.minicore.bookshelf.features.library.domain.AddBookUseCase
 import com.minicore.bookshelf.features.library.domain.CoverDraft
+import com.minicore.bookshelf.features.library.ui.bookform.BookFormRules
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.Clock
 import java.time.Year
@@ -97,6 +98,7 @@ class AddBookViewModel @Inject constructor(
             is CoverDraft.Image -> {
                 savedStateHandle[KEY_COVER_DRAFT_REF] = cover.draftRef
             }
+            is CoverDraft.Stored -> error("CoverDraft.Stored is unreachable from AddBookViewModel")
         }
     }
 
@@ -107,24 +109,18 @@ class AddBookViewModel @Inject constructor(
     fun onCommentChange(value: String) = update { it.copy(comment = value, error = null) }
 
     fun onYearTextChange(value: String) {
-        if (value.isNotEmpty() && (value.length > 4 || !value.all(Char::isDigit))) return
-        update { it.copy(yearText = value, error = null) }
+        val sanitized = BookFormRules.sanitizeYearText(value) ?: return
+        update { it.copy(yearText = sanitized, error = null) }
     }
 
     fun onYearStep(delta: Int) {
-        require(delta == 1 || delta == -1) { "delta must be +1 or -1, was $delta" }
-        update { state ->
-            val current = state.yearText.toIntOrNull()
-            val next = if (current == null || current == 0) currentYear() else (current + delta).coerceIn(1, 9999)
-            state.copy(yearText = next.toString(), error = null)
-        }
+        update { state -> state.copy(yearText = BookFormRules.stepYear(state.yearText, delta, currentYear()), error = null) }
     }
 
     private fun currentYear(): Int = Year.now(clock).value
 
     fun onRatingTap(star: Int) {
-        require(star in 1..5) { "star must be in 1..5, was $star" }
-        update { state -> state.copy(rating = if (state.rating == star) null else star, error = null) }
+        update { state -> state.copy(rating = BookFormRules.toggleRating(state.rating, star), error = null) }
     }
 
     fun onPresetSelected(preset: CoverPreset) {

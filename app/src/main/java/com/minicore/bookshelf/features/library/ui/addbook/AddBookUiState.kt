@@ -3,6 +3,7 @@ package com.minicore.bookshelf.features.library.ui.addbook
 import com.minicore.bookshelf.core.model.CoverPreset
 import com.minicore.bookshelf.features.library.domain.BookDraft
 import com.minicore.bookshelf.features.library.domain.CoverDraft
+import com.minicore.bookshelf.features.library.ui.bookform.BookFormRules
 
 /** [AddBookUiState.error] (plan #31 section 4.2); cleared on the next edit or save attempt. */
 enum class AddBookError { ImageImportFailed, SaveFailed }
@@ -23,7 +24,7 @@ data class AddBookUiState(
     val error: AddBookError? = null,
 ) {
     /** `"0"` -> `null` (plan #31 section 4.4 / UX spec section 4). */
-    val publishedYear: Int? get() = yearText.toIntOrNull()?.takeIf { it in 1..9999 }
+    val publishedYear: Int? get() = BookFormRules.parsePublishedYear(yearText)
 
     val canSave: Boolean get() = title.isNotBlank() && !isSaving && !isImportingImage
 
