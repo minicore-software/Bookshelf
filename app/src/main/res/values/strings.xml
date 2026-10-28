@@ -109,4 +109,30 @@
     <string name="book_detail_memory_feeling">Feeling</string>
     <string name="book_detail_memory_empty">— not yet written —</string>
     <string name="book_detail_memory_empty_a11y">not yet written</string>
+
+    <!-- Book Form shared Memory section (BOOKSHELF-0033) -->
+    <string name="book_form_memory_title">Memory</string>
+    <string name="book_form_memory_hint">optional · why, where, what you were going through</string>
+    <string name="book_form_memory_why_label">Why did I read this?</string>
+    <string name="book_form_memory_why_placeholder">Recommended by…</string>
+    <string name="book_form_memory_where_label">Where was I?</string>
+    <string name="book_form_memory_where_placeholder">On the train to Edinburgh, the rainy week…</string>
+    <string name="book_form_memory_what_label">What was I going through?</string>
+    <string name="book_form_memory_what_placeholder">Restless, mostly. Tea kept going cold.</string>
+
+    <!-- Edit Book form (BOOKSHELF-0033) -->
+    <string name="edit_book_title">Edit book</string>
+    <string name="edit_book_close">Close</string>
+    <string name="edit_book_borrowing_title">Borrowing</string>
+    <string name="edit_book_borrowing_label">This book is currently lent out</string>
+    <string name="edit_book_borrowing_helper">Changes when you lend or return this book.</string>
+    <string name="edit_book_remove">Remove book</string>
+    <string name="edit_book_cancel">Cancel</string>
+    <string name="edit_book_save">Save changes</string>
+    <string name="edit_book_save_failed">Couldn\'t save your changes. Try again.</string>
+    <string name="edit_book_cover_import_failed">Couldn\'t add that image. Try a different one or pick a color.</string>
+    <string name="edit_book_discard_title">Discard your changes?</string>
+    <string name="edit_book_discard_body">Your edits to this book won\'t be saved.</string>
+    <string name="edit_book_discard_keep_editing">Keep editing</string>
+    <string name="edit_book_discard_confirm">Discard</string>
 </resources>
