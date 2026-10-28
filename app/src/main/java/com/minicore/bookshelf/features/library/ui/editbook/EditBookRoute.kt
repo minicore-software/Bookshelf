@@ -252,6 +252,7 @@ private fun EditBookSheet(
                     text = stringResource(R.string.edit_book_cover_import_failed),
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
                 )
             }
 

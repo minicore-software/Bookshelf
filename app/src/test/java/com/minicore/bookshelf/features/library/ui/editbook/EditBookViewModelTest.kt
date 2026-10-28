@@ -1,6 +1,7 @@
 package com.minicore.bookshelf.features.library.ui.editbook
 
 import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.viewModelScope
 import com.minicore.bookshelf.core.coverimage.CoverImageStore
 import com.minicore.bookshelf.core.coverimage.CoverImportException
 import com.minicore.bookshelf.core.model.Book
@@ -23,12 +24,18 @@ import java.time.ZoneOffset
 import javax.inject.Provider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -74,6 +81,10 @@ private fun sparseBook(id: Long = 2L) = Book(
 
 private class EditBookFakeLibraryRepository : LibraryRepository {
     val byId = MutableStateFlow<LibraryBook?>(null)
+
+    /** `> 0` makes [observeLibraryBook] suspend before its first emission, so a test can exercise
+     * a fallback racing a real, slower upstream instead of this fake's otherwise-synchronous one. */
+    var emissionDelayMillis: Long = 0
     var updateCallCount = 0
     var lastUpdated: Book? = null
     var updateReturnsFalse = false
@@ -84,7 +95,17 @@ private class EditBookFakeLibraryRepository : LibraryRepository {
     override fun observeLentOutBooks(): Flow<List<LentBook>> = throw NotImplementedError()
     override fun observeCounts(): Flow<LibraryCounts> = throw NotImplementedError()
     override fun observeBook(id: Long): Flow<Book?> = MutableStateFlow(byId.value?.book)
-    override fun observeLibraryBook(id: Long): Flow<LibraryBook?> = byId
+
+    override fun observeLibraryBook(id: Long): Flow<LibraryBook?> =
+        if (emissionDelayMillis > 0) {
+            flow {
+                delay(emissionDelayMillis)
+                emitAll(byId)
+            }
+        } else {
+            byId
+        }
+
     override suspend fun addBook(book: Book): Long = throw NotImplementedError()
 
     override suspend fun updateBook(book: Book): Boolean {
@@ -99,6 +120,7 @@ private class EditBookFakeLibraryRepository : LibraryRepository {
 
 private class EditBookFakeCoverImageStore : CoverImageStore {
     val discarded = mutableListOf<String>()
+    val deleted = mutableListOf<String>()
     var failImport = false
     var nextDraftRef = "cover-drafts/11111111-1111-1111-1111-111111111111.jpg"
     var draftExists = true
@@ -114,7 +136,9 @@ private class EditBookFakeCoverImageStore : CoverImageStore {
 
     override suspend fun commit(draftRef: String): String = "covers/22222222-2222-2222-2222-222222222222.jpg"
     override suspend fun uncommit(storedRef: String, draftRef: String) = Unit
-    override suspend fun delete(storedRef: String) = Unit
+    override suspend fun delete(storedRef: String) {
+        deleted += storedRef
+    }
     override suspend fun exists(ref: String): Boolean = draftExists
 }
 
@@ -122,23 +146,36 @@ private class EditBookFakeCoverImageStore : CoverImageStore {
  * FF-E2 (plan #33 section 5): [EditBookViewModel]'s pre-fill, live lending, single-flight save
  * and process-death restore rules.
  *
- * Uses [UnconfinedTestDispatcher] as `Dispatchers.Main`, not `StandardTestDispatcher`
- * (`AddBookViewModelTest`'s choice): [EditBookViewModel] shares its single upstream
- * `ObserveBookDetailUseCase` subscription through `stateIn`, and that subscription's underlying
- * `combine(...)` reliably deadlocks `StandardTestDispatcher.scheduler.runCurrent()` in this
- * environment (reproduced in isolation, independent of any logic in this ticket - a `combine()`
- * over an infinite `delay()`-based flow collected via `Dispatchers.Main.immediate`, i.e.
- * `viewModelScope`, never resolves under `runCurrent()`, only under eager/unconfined dispatch).
- * `Unconfined` runs every `viewModelScope.launch` eagerly, so no explicit
- * `dispatcher.scheduler.runCurrent()` step is needed anywhere in this file.
+ * Uses [StandardTestDispatcher] as `Dispatchers.Main`, matching `BookDetailViewModelTest`'s
+ * pattern for the same `ObserveBookDetailUseCase`/`CurrentDateProvider` combo - a prior version of
+ * this file used `UnconfinedTestDispatcher` on the (incorrect) theory that `combine()` over
+ * `CurrentDateProvider`'s infinite `delay()`-based flow deadlocks `StandardTestDispatcher`;
+ * `BookDetailViewModelTest` proves otherwise. The actual deadlock was in this file's own old
+ * `nextResult()` helper, which called `runBlocking { vm.onDone.first() }` on the test thread while
+ * waiting for a Main-dispatched event that only ever advances via `runCurrent()` - a
+ * `StandardTestDispatcher` cannot advance from inside a nested `runBlocking` on the same thread.
+ * `onDone` is now collected into a list from `backgroundScope`, which `runTest` drives and cancels
+ * for us.
+ *
+ * [editBookTest] wraps every test body: [EditBookViewModel] keeps its own upstream
+ * `ObserveBookDetailUseCase` subscription alive for the ViewModel's whole lifetime (the `init`
+ * block's `onEach { }.launchIn(viewModelScope)`, independent of whether anyone collects
+ * [EditBookViewModel.uiState]), and that subscription chains into [CurrentDateProvider.observe]'s
+ * infinite `delay()`-based loop. Nothing in a plain JVM test ever calls `ViewModel.onCleared()`,
+ * so if a created [EditBookViewModel] is left running, `runTest`'s own end-of-test
+ * `advanceUntilIdle()` spins forever advancing through that loop's ever-rescheduled delay - a real
+ * livelock, not a deadlock (confirmed via a thread dump: 100% CPU inside
+ * `TestCoroutineScheduler.advanceUntilIdleOr`). [editBookTest] cancels every [EditBookViewModel]
+ * created through [viewModel] before the test body returns, breaking that chain.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class EditBookViewModelTest {
 
-    private val dispatcher = UnconfinedTestDispatcher()
+    private val dispatcher = StandardTestDispatcher()
     private val repository = EditBookFakeLibraryRepository()
     private val coverImages = EditBookFakeCoverImageStore()
     private val clock = Clock.fixed(Instant.parse("2026-10-27T12:00:00Z"), ZoneOffset.UTC)
+    private val createdViewModels = mutableListOf<EditBookViewModel>()
 
     @Before
     fun setUp() {
@@ -159,17 +196,24 @@ class EditBookViewModelTest {
             coverImages,
             clock,
             savedStateHandle,
-        )
+        ).also { createdViewModels += it }
 
-    /** Pulls the next (already-buffered, under `Unconfined`) [EditBookResult] off [vm]'s
-     * one-shot event channel without risking a real suspend. */
-    private fun nextResult(vm: EditBookViewModel): EditBookResult = runBlocking { vm.onDone.first() }
+    /** Runs [testBody] under [dispatcher], then cancels every [EditBookViewModel] created via
+     * [viewModel] so `runTest`'s trailing drain can finish (see the class doc). */
+    private fun editBookTest(testBody: suspend TestScope.() -> Unit) = runTest(dispatcher) {
+        try {
+            testBody()
+        } finally {
+            createdViewModels.forEach { it.viewModelScope.cancel() }
+        }
+    }
 
     // F1: a fully-populated book seeds every field, including a Stored cover.
     @Test
-    fun fullyPopulatedBook_seedsEveryField() {
+    fun fullyPopulatedBook_seedsEveryField() = editBookTest {
         repository.byId.value = LibraryBook(populatedBook(1L), null)
         val vm = viewModel(bookId = 1L)
+        dispatcher.scheduler.runCurrent()
 
         val state = vm.uiState.value
         assertTrue(state.isLoaded)
@@ -188,9 +232,10 @@ class EditBookViewModelTest {
     // F2: a sparse book (title only) seeds empty fields, an unset (null) rating and the
     // id-derived preset cover.
     @Test
-    fun sparseBook_seedsEmptyFieldsAndUnsetRating() {
+    fun sparseBook_seedsEmptyFieldsAndUnsetRating() = editBookTest {
         repository.byId.value = LibraryBook(sparseBook(2L), null)
         val vm = viewModel(bookId = 2L)
+        dispatcher.scheduler.runCurrent()
 
         val state = vm.uiState.value
         assertTrue(state.isLoaded)
@@ -206,20 +251,23 @@ class EditBookViewModelTest {
     // F3/F8: typing in a field while the underlying row re-emits (e.g. a loan opens) does not
     // overwrite the typed text - only isLentOut updates, live, both directions.
     @Test
-    fun roomReEmission_doesNotOverwriteTypedText_onlyUpdatesIsLentOut() {
+    fun roomReEmission_doesNotOverwriteTypedText_onlyUpdatesIsLentOut() = editBookTest {
         repository.byId.value = LibraryBook(populatedBook(1L), null)
         val vm = viewModel(bookId = 1L)
+        dispatcher.scheduler.runCurrent()
 
         vm.onTitleChange("Dune Messiah")
         assertFalse(vm.uiState.value.isLentOut)
 
         val loan = OpenLoan(loanId = 9L, borrowerName = "Alex", loanedAt = Instant.EPOCH, dueAt = LocalDate.of(1970, 1, 2))
         repository.byId.value = LibraryBook(populatedBook(1L), loan)
+        dispatcher.scheduler.runCurrent()
 
         assertEquals("Dune Messiah", vm.uiState.value.title)
         assertTrue(vm.uiState.value.isLentOut)
 
         repository.byId.value = LibraryBook(populatedBook(1L), null)
+        dispatcher.scheduler.runCurrent()
 
         assertEquals("Dune Messiah", vm.uiState.value.title)
         assertFalse(vm.uiState.value.isLentOut)
@@ -227,21 +275,27 @@ class EditBookViewModelTest {
 
     // F13: a clean dismiss (no edits) emits Cancelled without needing a confirm step.
     @Test
-    fun cleanDismiss_emitsCancelled() {
+    fun cleanDismiss_emitsCancelled() = editBookTest {
         repository.byId.value = LibraryBook(populatedBook(1L), null)
         val vm = viewModel(bookId = 1L)
+        dispatcher.scheduler.runCurrent()
         assertFalse(vm.uiState.value.isDirty)
 
-        vm.onDismissRequest()
+        val results = mutableListOf<EditBookResult>()
+        backgroundScope.launch { vm.onDone.toList(results) }
 
-        assertEquals(EditBookResult.Cancelled, nextResult(vm))
+        vm.onDismissRequest()
+        dispatcher.scheduler.runCurrent()
+
+        assertEquals(listOf(EditBookResult.Cancelled), results)
     }
 
     // F13: editing a field makes the form dirty.
     @Test
-    fun editingAField_makesTheFormDirty() {
+    fun editingAField_makesTheFormDirty() = editBookTest {
         repository.byId.value = LibraryBook(populatedBook(1L), null)
         val vm = viewModel(bookId = 1L)
+        dispatcher.scheduler.runCurrent()
 
         vm.onTitleChange("Dune Messiah")
         assertTrue(vm.uiState.value.isDirty)
@@ -249,36 +303,45 @@ class EditBookViewModelTest {
 
     // F17, FF-E2: two onSave() calls without a suspension point in between update exactly once.
     @Test
-    fun doubleSave_updatesExactlyOnce() {
+    fun doubleSave_updatesExactlyOnce() = editBookTest {
         repository.byId.value = LibraryBook(populatedBook(1L), null)
         val vm = viewModel(bookId = 1L)
+        dispatcher.scheduler.runCurrent()
 
         vm.onSave()
         vm.onSave()
+        dispatcher.scheduler.runCurrent()
 
         assertEquals(1, repository.updateCallCount)
     }
 
     @Test
-    fun save_emitsSaved_onSuccess() {
+    fun save_emitsSaved_onSuccess() = editBookTest {
         repository.byId.value = LibraryBook(populatedBook(1L), null)
         val vm = viewModel(bookId = 1L)
+        dispatcher.scheduler.runCurrent()
+
+        val results = mutableListOf<EditBookResult>()
+        backgroundScope.launch { vm.onDone.toList(results) }
 
         vm.onTitleChange("Dune Messiah")
         vm.onSave()
+        dispatcher.scheduler.runCurrent()
 
-        assertEquals(EditBookResult.Saved, nextResult(vm))
+        assertEquals(listOf(EditBookResult.Saved), results)
         assertEquals("Dune Messiah", requireNotNull(repository.lastUpdated).title)
     }
 
     @Test
-    fun save_keepsFieldsAndSetsError_onFailure() {
+    fun save_keepsFieldsAndSetsError_onFailure() = editBookTest {
         repository.failUpdate = true
         repository.byId.value = LibraryBook(populatedBook(1L), null)
         val vm = viewModel(bookId = 1L)
+        dispatcher.scheduler.runCurrent()
 
         vm.onTitleChange("Dune Messiah")
         vm.onSave()
+        dispatcher.scheduler.runCurrent()
 
         val state = vm.uiState.value
         assertFalse(state.isSaving)
@@ -289,26 +352,34 @@ class EditBookViewModelTest {
 
     // F22: the row vanishing while Edit is open emits NotFound, with no crash.
     @Test
-    fun rowDeletedWhileOpen_emitsNotFound() {
+    fun rowDeletedWhileOpen_emitsNotFound() = editBookTest {
         repository.byId.value = LibraryBook(populatedBook(1L), null)
         val vm = viewModel(bookId = 1L)
+        dispatcher.scheduler.runCurrent()
+
+        val results = mutableListOf<EditBookResult>()
+        backgroundScope.launch { vm.onDone.toList(results) }
 
         repository.byId.value = null
+        dispatcher.scheduler.runCurrent()
 
-        assertEquals(EditBookResult.NotFound, nextResult(vm))
+        assertEquals(listOf(EditBookResult.NotFound), results)
     }
 
     // F19: process-death restore round-trips every field via SavedStateHandle.
     @Test
-    fun restoredFromSavedStateHandle_roundTripsFields() {
+    fun restoredFromSavedStateHandle_roundTripsFields() = editBookTest {
         val savedStateHandle = SavedStateHandle(mapOf("bookId" to 1L))
         repository.byId.value = LibraryBook(populatedBook(1L), null)
         val original = viewModel(bookId = 1L, savedStateHandle = savedStateHandle)
+        dispatcher.scheduler.runCurrent()
 
         original.onTitleChange("Dune Messiah")
         original.onMemoryWhyChange("A road trip")
 
         val restored = viewModel(bookId = 1L, savedStateHandle = savedStateHandle)
+        dispatcher.scheduler.runCurrent()
+
         val state = restored.uiState.value
         assertTrue(state.isLoaded)
         assertEquals("Dune Messiah", state.title)
@@ -319,7 +390,7 @@ class EditBookViewModelTest {
     // F19: a purged image draft on restore falls back to the book's own original cover, not a
     // preset.
     @Test
-    fun restoredWithAPurgedImageDraft_fallsBackToTheOriginalStoredCover() {
+    fun restoredWithAPurgedImageDraft_fallsBackToTheOriginalStoredCover() = editBookTest {
         val savedStateHandle = SavedStateHandle(
             mapOf(
                 "bookId" to 1L,
@@ -332,41 +403,104 @@ class EditBookViewModelTest {
         repository.byId.value = LibraryBook(populatedBook(1L), null)
 
         val restored = viewModel(bookId = 1L, savedStateHandle = savedStateHandle)
+        dispatcher.scheduler.runCurrent()
+
+        assertEquals(CoverDraft.Stored("covers/original.jpg"), restored.uiState.value.cover)
+    }
+
+    // F19 regression: a purged draft, falling back against a *slower* upstream, must not resolve
+    // to a wrong preset default just because the (synchronous) file-exists check finishes first -
+    // it must wait for the real row before touching the cover at all.
+    @Test
+    fun restoredWithAPurgedImageDraft_andADelayedUpstream_waitsForTheRealCoverBeforeFallingBack() = editBookTest {
+        val savedStateHandle = SavedStateHandle(
+            mapOf(
+                "bookId" to 1L,
+                "seeded" to true,
+                "title" to "Dune",
+                "cover_draft_ref" to "cover-drafts/does-not-exist.jpg",
+            ),
+        )
+        coverImages.draftExists = false
+        repository.emissionDelayMillis = 1_000
+        repository.byId.value = LibraryBook(populatedBook(1L), null)
+
+        val restored = viewModel(bookId = 1L, savedStateHandle = savedStateHandle)
+        dispatcher.scheduler.runCurrent()
+
+        // The file-exists check has already resolved (no delay on it), but the upstream has not
+        // emitted yet - the cover must still be the stale restored draft reference, never a
+        // preset default standing in for "not known yet".
+        assertEquals(CoverDraft.Image("cover-drafts/does-not-exist.jpg"), restored.uiState.value.cover)
+
+        // Not advanceUntilIdle(): the ViewModel's own upstream subscription never goes idle (its
+        // init block subscribes to CurrentDateProvider's infinite delay()-loop for as long as it
+        // lives, see the class doc), so advanceUntilIdle() would spin forever here. Advancing past
+        // only the fake repository's 1s emission delay is enough to let it emit.
+        dispatcher.scheduler.advanceTimeBy(1_000)
+        dispatcher.scheduler.runCurrent()
 
         assertEquals(CoverDraft.Stored("covers/original.jpg"), restored.uiState.value.cover)
     }
 
     // Cancel/Remove/preset-select after a Stored cover never touches the stored file (E5).
     @Test
-    fun presetSelectedOverAStoredCover_doesNotDiscardAnyFile() {
+    fun presetSelectedOverAStoredCover_doesNotDiscardAnyFile() = editBookTest {
         repository.byId.value = LibraryBook(populatedBook(1L), null)
         val vm = viewModel(bookId = 1L)
+        dispatcher.scheduler.runCurrent()
         assertTrue(vm.uiState.value.cover is CoverDraft.Stored)
 
         vm.onPresetSelected(CoverPreset.Preset3)
+        dispatcher.scheduler.runCurrent()
 
         assertEquals(CoverDraft.Preset(CoverPreset.Preset3), vm.uiState.value.cover)
         assertTrue(coverImages.discarded.isEmpty())
     }
 
     @Test
-    fun removeImageOverAStoredCover_doesNotDiscardAnyFile() {
+    fun removeImageOverAStoredCover_doesNotDiscardAnyFile() = editBookTest {
         repository.byId.value = LibraryBook(populatedBook(1L), null)
         val vm = viewModel(bookId = 1L)
+        dispatcher.scheduler.runCurrent()
 
         vm.onRemoveImage()
+        dispatcher.scheduler.runCurrent()
 
         assertTrue(vm.uiState.value.cover is CoverDraft.Preset)
         assertTrue(coverImages.discarded.isEmpty())
     }
 
     @Test
-    fun dismissRequest_withAStoredCover_doesNotDiscardAnyFile() {
+    fun dismissRequest_withAStoredCover_doesNotDiscardAnyFile() = editBookTest {
         repository.byId.value = LibraryBook(populatedBook(1L), null)
         val vm = viewModel(bookId = 1L)
+        dispatcher.scheduler.runCurrent()
 
         vm.onDismissRequest()
+        dispatcher.scheduler.runCurrent()
 
         assertTrue(coverImages.discarded.isEmpty())
+    }
+
+    // Picking a new image over a Stored cover, then discarding: the newly imported draft is
+    // discarded like any other CoverDraft.Image draft, but the original stored file is never
+    // touched - no delete, no discard call against the stored ref (E5).
+    @Test
+    fun pickingANewImageOverAStoredCover_thenDiscarding_discardsOnlyTheNewDraft() = editBookTest {
+        repository.byId.value = LibraryBook(populatedBook(1L), null)
+        val vm = viewModel(bookId = 1L)
+        dispatcher.scheduler.runCurrent()
+        assertTrue(vm.uiState.value.cover is CoverDraft.Stored)
+
+        vm.onImagePicked("content://new-photo")
+        dispatcher.scheduler.runCurrent()
+        assertEquals(CoverDraft.Image(coverImages.nextDraftRef), vm.uiState.value.cover)
+
+        vm.onDismissRequest()
+        dispatcher.scheduler.runCurrent()
+
+        assertEquals(listOf(coverImages.nextDraftRef), coverImages.discarded)
+        assertTrue(coverImages.deleted.isEmpty())
     }
 }

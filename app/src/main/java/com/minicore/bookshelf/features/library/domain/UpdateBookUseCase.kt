@@ -64,6 +64,10 @@ class UpdateBookUseCase @Inject constructor(
         val newCover: Cover = when (val coverDraft = draft.cover) {
             is CoverDraft.Preset -> Cover.Preset(coverDraft.preset)
             is CoverDraft.Stored -> {
+                // Not reachable today (no other flow replaces a row's image while Edit is open),
+                // flagged only: if one ever does, this throws on every Save for the open Edit
+                // session rather than failing gracefully - consider mapping to
+                // UpdateBookResult.NotFound (or a dedicated conflict result) if that changes.
                 check(previousCover is Cover.Image && previousCover.uri == coverDraft.storedRef) {
                     "CoverDraft.Stored(${coverDraft.storedRef}) does not match the current row's cover"
                 }
