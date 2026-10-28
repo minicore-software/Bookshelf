@@ -23,3 +23,15 @@ Running log of UX decisions and rationale across tickets (delivery-conventions �
   **Alternatives considered:** terracotta text-on-paper for both (rejected — measured ~3.0:1, fails WCAG AA 4.5:1 for normal text).
   **Reason:** contrast failure, same exact pattern already documented and fixed in #20 (plan R5: "terracotta on paper is 3.39:1 and fails AA for 10sp text") — this spec applies the established fix direction (fill for buttons, `overdue` token for small error text) rather than reintroducing the same defect.
   **Who agreed:** ux-specialist (spec author), per WCAG 2.2 AA and existing project precedent.
+
+## 2026-10-28 — BOOKSHELF-0035 (Delete a book from the Library grid)
+
+- **Decision:** the card actions popover's "Remove book" item uses `MaterialTheme.colorScheme.error` (the `overdue` token, `#9B2C2C`) for its text and leading trash glyph, not literal `terracotta`, even though `Bookshelf-Visual-Spec.md` §7.3 specifies terracotta text/icon for its own destructive-item precedent ("Sign out").
+  **Alternatives considered:** literal terracotta text per §7.3's letter (rejected — this is terracotta-on-paper, the exact combination already measured at ~3.0–3.39:1 and documented as an AA failure for normal text on 2026-10-27, and again in #20 plan R5); a filled terracotta pill for the menu item (rejected — out of place inside an otherwise plain M3 `DropdownMenuItem` row, and not what any other menu item in the app looks like).
+  **Reason:** applies the same fix direction already established twice (#20, #31) rather than reintroducing the identical defect in a third place; keeps every destructive-text instance in the Library feature on one AA-safe token, matching `RemoveBookDialog`'s own use of `colorScheme.error`.
+  **Who agreed:** ux-specialist (spec author), per WCAG 2.2 AA and existing project precedent.
+
+- **Decision:** the grid card's overflow "⋮" sits at the cover's top-start corner as a **dark** translucent disc (`ink` at 55% opacity, matching `BookCover`'s existing lent-dimming opacity) with a light (`paper`) glyph and a thin light ring, not a light disc — mirroring, but visually inverting, `LibraryStatusDot`'s top-end position and ring treatment.
+  **Alternatives considered:** a light/paper disc, matching the status dot's own ring colour (rejected — fails WCAG 1.4.11's 3:1 non-text contrast minimum against light preset covers and light user-image covers, the single most likely case); bottom-end placement (rejected — risks visual/physical collision with the Library FAB on the grid's bottom row, flagged as risk K9 in the architect's plan); top-end, next to or merged with the status dot (rejected — the architect's plan explicitly calls out that corner as already occupied and requires a different one).
+  **Reason:** WCAG 1.4.11 (non-text contrast) must hold against arbitrary cover art, including near-white and near-black images (ticket AC, plan risk K8); a dark-scrim-plus-light-glyph badge is also the literal pattern the AC cites as the target ("Android uninstall-style").
+  **Who agreed:** ux-specialist (spec author), per WCAG 2.2 AA (§1.4.11) and the architect's plan (L3, L9, K8, K9).
