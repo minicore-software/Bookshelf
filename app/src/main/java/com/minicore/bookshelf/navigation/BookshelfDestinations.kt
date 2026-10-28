@@ -12,4 +12,11 @@ sealed class BookshelfDestinations(val route: String) {
         const val ARG_BOOK_ID = "bookId"
         fun route(bookId: Long) = "book/$bookId"
     }
+
+    /** The "edit a book" form (plan #33 decision E1), stacked on top of [BookDetail]. Navigated
+     * to only via [com.minicore.bookshelf.navigation.navigateToEditBook]. */
+    data object EditBook : BookshelfDestinations("book/{bookId}/edit") {
+        const val ARG_BOOK_ID = "bookId"
+        fun route(bookId: Long) = "book/$bookId/edit"
+    }
 }
