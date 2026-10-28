@@ -81,11 +81,11 @@ fun EditBookRoute(
     }
 
     fun requestDismiss() {
-        if (uiState.isSaving || uiState.isRemoving) return
+        if (uiState.isSaving || uiState.isRemoving || uiState.isImportingImage) return
         if (uiState.isDirty) showDiscardConfirm = true else viewModel.onDismissRequest()
     }
 
-    BackHandler(enabled = !uiState.isSaving && !uiState.isRemoving) { requestDismiss() }
+    BackHandler(enabled = !uiState.isSaving && !uiState.isRemoving && !uiState.isImportingImage) { requestDismiss() }
 
     val pickImage = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         viewModel.onImagePicked(uri?.toString())
@@ -165,7 +165,7 @@ private fun EditBookSheet(
     onScrimClick: () -> Unit,
     onRemoveBookClick: () -> Unit,
 ) {
-    val enabled = uiState.isLoaded && !uiState.isSaving && !uiState.isRemoving
+    val enabled = uiState.isLoaded && !uiState.isSaving && !uiState.isRemoving && !uiState.isImportingImage
 
     BookFormSheet(
         title = stringResource(R.string.edit_book_title),

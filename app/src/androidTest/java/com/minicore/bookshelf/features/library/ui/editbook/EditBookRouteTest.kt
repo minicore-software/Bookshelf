@@ -97,7 +97,14 @@ private class EditBookRouteFakeLibraryRepository : LibraryRepository {
 }
 
 private class EditBookRouteFakeCoverImageStore : CoverImageStore {
-    override suspend fun importDraft(sourceUri: String): String = throw CoverImportException("unused")
+    /** When set, [importDraft] suspends on this until the test completes it, so a test can
+     * assert on in-flight `isImportingImage` UI state. */
+    var importGate: CompletableDeferred<Unit>? = null
+
+    override suspend fun importDraft(sourceUri: String): String {
+        importGate?.await()
+        throw CoverImportException("unused")
+    }
     override suspend fun discardDraft(draftRef: String) = Unit
     override suspend fun commit(draftRef: String): String = "covers/new.jpg"
     override suspend fun uncommit(storedRef: String, draftRef: String) = Unit
@@ -408,6 +415,42 @@ class EditBookRouteTest {
         composeRule.onNodeWithTag(EDIT_BOOK_REMOVE_BUTTON_TEST_TAG).assertIsNotEnabled()
 
         gate.complete(Unit)
+    }
+
+    // Review finding: Remove and Cancel (and, by the same `enabled` gate, the rest of the form)
+    // are disabled while an image import is in flight, not just left clickable-but-a-no-op - the
+    // UI now matches the EditBookViewModel guards added for AC2/AC4.
+    @Test
+    fun removeAndCancelButtons_disabledWhileImportingImage() {
+        repository.byId.value = LibraryBook(book(), null)
+        val importGate = CompletableDeferred<Unit>()
+        coverImages.importGate = importGate
+        val viewModel = EditBookViewModel(
+            ObserveBookDetailUseCase(repository, CurrentDateProvider(Provider { clock })),
+            UpdateBookUseCase(repository, coverImages),
+            RemoveBookUseCase(repository, coverImages),
+            coverImages,
+            clock,
+            SavedStateHandle(mapOf("bookId" to 1L)),
+        )
+        composeRule.setContent {
+            BookshelfTheme {
+                EditBookRoute(onDone = {}, viewModel = viewModel)
+            }
+        }
+        composeRule.waitForIdle()
+
+        composeRule.runOnIdle { viewModel.onImagePicked("content://new-photo") }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(EDIT_BOOK_REMOVE_BUTTON_TEST_TAG).assertIsNotEnabled()
+        composeRule.onNodeWithTag(EDIT_BOOK_CANCEL_BUTTON_TEST_TAG).assertIsNotEnabled()
+
+        importGate.complete(Unit)
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(EDIT_BOOK_REMOVE_BUTTON_TEST_TAG).assertIsEnabled()
+        composeRule.onNodeWithTag(EDIT_BOOK_CANCEL_BUTTON_TEST_TAG).assertIsEnabled()
     }
 
     // F18/F21/F23: at 2x font scale on a 320dp-wide viewport, Remove/Cancel/Save all display
