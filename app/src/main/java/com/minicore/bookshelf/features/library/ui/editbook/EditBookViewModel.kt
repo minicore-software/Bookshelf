@@ -105,7 +105,7 @@ class EditBookViewModel @Inject constructor(
                 // `null` initial value, so the fallback would silently become a wrong preset, and
                 // a later Save would delete the book's real original cover file.
                 val original = bookDetail.filterNotNull().first().detail?.book?.cover?.toCoverDraft() ?: return@launch
-                if (!coverImages.exists(restoredCover.draftRef)) {
+                if (!coverImages.exists(restoredCover.draftRef) && _uiState.value.cover == restoredCover) {
                     update { it.copy(cover = original) }
                 }
             }
@@ -316,6 +316,12 @@ class EditBookViewModel @Inject constructor(
     private fun emitResult(result: EditBookResult) {
         if (hasEmittedResult) return
         hasEmittedResult = true
+        if (result == EditBookResult.NotFound) {
+            val cover = _uiState.value.cover
+            if (cover is CoverDraft.Image) {
+                viewModelScope.launch { coverImages.discardDraft(cover.draftRef) }
+            }
+        }
         viewModelScope.launch { events.send(result) }
     }
 }
