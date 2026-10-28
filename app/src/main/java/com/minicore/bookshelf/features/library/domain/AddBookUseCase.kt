@@ -59,6 +59,7 @@ class AddBookUseCase @Inject constructor(
                 originalDraftRef = coverDraft.draftRef
                 Cover.Image(ref)
             }
+            is CoverDraft.Stored -> error("CoverDraft.Stored is unreachable from AddBookUseCase")
         }
 
         return try {

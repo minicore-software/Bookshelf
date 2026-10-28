@@ -87,7 +87,13 @@ fun CoverPicker(
         when {
             isImportingImage -> ImportingImageRow()
             cover is CoverDraft.Image -> ImageSetRow(
-                draftRef = cover.draftRef,
+                ref = cover.draftRef,
+                enabled = enabled,
+                onReplaceClick = onUploadClick,
+                onRemoveClick = onRemoveClick,
+            )
+            cover is CoverDraft.Stored -> ImageSetRow(
+                ref = cover.storedRef,
                 enabled = enabled,
                 onReplaceClick = onUploadClick,
                 onRemoveClick = onRemoveClick,
@@ -157,7 +163,7 @@ private fun ImportingImageRow() {
 }
 
 @Composable
-private fun ImageSetRow(draftRef: String, enabled: Boolean, onReplaceClick: () -> Unit, onRemoveClick: () -> Unit) {
+private fun ImageSetRow(ref: String, enabled: Boolean, onReplaceClick: () -> Unit, onRemoveClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -168,7 +174,7 @@ private fun ImageSetRow(draftRef: String, enabled: Boolean, onReplaceClick: () -
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        CoverThumbnail(ref = draftRef)
+        CoverThumbnail(ref = ref)
         Text(
             text = stringResource(R.string.add_book_cover_custom_image),
             style = MaterialTheme.typography.bodyMedium,
