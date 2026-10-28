@@ -10,6 +10,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.minicore.bookshelf.R
+import com.minicore.bookshelf.features.library.ui.removebook.RemoveBookDialog
 
 /**
  * Stateful wrapper around the stateless [LibraryScreen] (plan R7).
@@ -38,13 +39,23 @@ fun LibraryRoute(
     viewModel: LibraryViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val removePrompt by viewModel.removePrompt.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val bookAddedMessage = stringResource(R.string.add_book_added_snackbar)
+    val removeFailedMessage = stringResource(R.string.remove_book_failed)
 
     LaunchedEffect(bookAddedEventId) {
         if (bookAddedEventId != null) {
             snackbarHostState.showSnackbar(bookAddedMessage)
             onBookAddedSnackbarShown()
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.events.collect { event ->
+            when (event) {
+                LibraryEvent.RemoveFailed -> snackbarHostState.showSnackbar(removeFailedMessage)
+            }
         }
     }
 
@@ -56,6 +67,17 @@ fun LibraryRoute(
         onSeeAllLoansClick = onSeeAllLoansClick,
         onFilterSelected = viewModel::onFilterSelected,
         onAddBookClick = onAddBookClick,
+        onRemoveBookRequest = viewModel::onRemoveRequested,
         snackbarHostState = snackbarHostState,
     )
+
+    val prompt = removePrompt
+    if (prompt != null) {
+        RemoveBookDialog(
+            bookTitle = prompt.title,
+            borrowerName = prompt.borrowerName,
+            onConfirm = viewModel::onRemoveConfirmed,
+            onDismiss = viewModel::onRemoveDismissed,
+        )
+    }
 }

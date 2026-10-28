@@ -190,7 +190,7 @@ private fun EditBookSheet(
             EditBookError.RemoveFailed -> {
                 {
                     Text(
-                        text = stringResource(R.string.edit_book_remove_failed),
+                        text = stringResource(R.string.remove_book_failed),
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier
