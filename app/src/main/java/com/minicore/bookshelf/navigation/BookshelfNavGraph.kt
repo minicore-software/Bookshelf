@@ -14,6 +14,7 @@ import com.minicore.bookshelf.features.library.ui.LibraryRoute
 import com.minicore.bookshelf.features.library.ui.addbook.AddBookResult
 import com.minicore.bookshelf.features.library.ui.addbook.AddBookRoute
 import com.minicore.bookshelf.features.library.ui.bookdetail.BookDetailRoute
+import com.minicore.bookshelf.features.library.ui.editbook.EditBookRoute
 
 /** A12: the result key `AddBookRoute` -> `LibraryRoute` hand off a successful save through, never
  * exposed outside `navigation/` (the Library side only sees a plain id, see
@@ -97,6 +98,26 @@ fun BookshelfNavGraph(navController: NavHostController) {
                 onClose = { navController.popBackStack(BookshelfDestinations.BookDetail.route, inclusive = true) },
                 onEditClick = { bookId -> navController.navigateToEditBook(bookId) },
                 onLendClick = {},
+            )
+        }
+        dialog(
+            route = BookshelfDestinations.EditBook.route,
+            arguments = listOf(navArgument(BookshelfDestinations.EditBook.ARG_BOOK_ID) { type = NavType.LongType }),
+            dialogProperties = DialogProperties(
+                usePlatformDefaultWidth = false,
+                decorFitsSystemWindows = false,
+                dismissOnBackPress = false,
+                dismissOnClickOutside = false,
+            ),
+        ) {
+            EditBookRoute(
+                // Saved/Cancelled/NotFound all pop this destination specifically (plan #33
+                // decision E2) - Detail is then visible again and already shows any saved
+                // values (its flow is live); a NotFound also pops Detail itself, through
+                // Detail's own NotFound handling (#32 V8), once Detail re-collects and sees the
+                // row is gone.
+                onDone = { navController.popBackStack(BookshelfDestinations.EditBook.route, inclusive = true) },
+                onRemoveClick = {} /* #34 wires the confirm + cascade */,
             )
         }
     }
