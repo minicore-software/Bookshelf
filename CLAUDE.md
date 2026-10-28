@@ -64,15 +64,20 @@ app/src/main/java/com/minicore/bookshelf/
  │    │    │    │              # chrome/rules both forms are built on - BookFormSheet,
  │    │    │    │              # BookFormDiscardDialog, BookFormRules (BOOKSHELF-0033). Never
  │    │    │    │              # imports addbook/ or editbook/, so either screen can reuse it
- │    │    │    └── editbook/  # EditBookRoute/EditBookViewModel/EditBookUiState, BorrowingSection
- │    │    │                   # (the "edit a book" sheet stacked on Book Detail, reached only via
- │    │    │                   # navigation/'s navigateToEditBook - BOOKSHELF-0033). The lent
- │    │    │                   # indicator is read-only and live; this package never references a
- │    │    │                   # Loan write path
+ │    │    │    ├── editbook/  # EditBookRoute/EditBookViewModel/EditBookUiState, BorrowingSection
+ │    │    │    │              # (the "edit a book" sheet stacked on Book Detail, reached only via
+ │    │    │    │              # navigation/'s navigateToEditBook - BOOKSHELF-0033). The lent
+ │    │    │    │              # indicator is read-only and live; this package never references a
+ │    │    │    │              # Loan write path. Owns the "Remove book" confirm flow in-sheet
+ │    │    │    │              # (BOOKSHELF-0034) via removebook/'s shared dialog
+ │    │    │    └── removebook/ # RemoveBookDialog - the stateless "remove this book?" confirm
+ │    │    │                    # dialog (open-loan warning, never blocking), shared by editbook/
+ │    │    │                    # and the Library grid's future delete action (BOOKSHELF-0034/#35).
+ │    │    │                    # Never imports editbook/ or bookform/
  │    │    ├── domain/     # LibraryRepository contract, read models (LibraryBook, LentBook,
  │    │    │               # LibraryCounts, OpenLoan), use cases (incl. AddBookUseCase,
- │    │    │               # UpdateBookUseCase, ObserveBookDetailUseCase), BookDraft (incl.
- │    │    │               # CoverDraft.Stored), BookDetail/BookDetailLoan
+ │    │    │               # UpdateBookUseCase, ObserveBookDetailUseCase, RemoveBookUseCase),
+ │    │    │               # BookDraft (incl. CoverDraft.Stored), BookDetail/BookDetailLoan
  │    │    └── data/       # RoomLibraryRepository (entity <-> domain mapping)
  │    ├── lending/
  │    │    ├── ui/         # Lend-a-book sheet, My Loans screen
