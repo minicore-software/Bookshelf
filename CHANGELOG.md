@@ -134,6 +134,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   scrim and system back all return to the Library. "Lend out" is a stubbed
   no-op this epic (closes #32); "Edit" is wired to a `navigateToEditBook`
   seam that does nothing yet - #33 builds the real screen.
+- Edit a book's details: the Book Detail modal's pencil button now opens an
+  "Edit book" sheet (`EditBookRoute`, stacked on top of Book Detail,
+  `book/{bookId}/edit`) pre-filled from the book - title, author, year,
+  rating, short comment and cover - plus a Memory section with three
+  independent, optional fields ("Why did I read this?" / "Where was I?" /
+  "What was I going through?") and a read-only "This book is currently lent
+  out" indicator that tracks an open loan live and can never be toggled from
+  this screen. "Save changes" persists the edit (`UpdateBookUseCase`) while
+  leaving every field this form does not show (status, ISBN, page count,
+  genre, synopsis, when it was added) untouched, and returns to Book Detail
+  showing the new values; "Cancel", the X, system back and a scrim tap all
+  discard the draft, asking "Discard your changes?" first only when it's
+  dirty. A replaced or removed cover image is only deleted from storage
+  after a successful save; a failed save keeps every field and shows
+  "Couldn't save your changes. Try again.". A "Remove book" button is
+  present (destructive-styled, left of Cancel/Save) but is a no-op this
+  release - #34 wires its confirmation and the actual delete. (#33)
 
 ### Changed
 - **Internal, no end-user-visible change:** extended the `books` table (Room
