@@ -1,6 +1,8 @@
 package com.minicore.bookshelf.features.library.ui
 
 import androidx.compose.material3.Surface
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.DeviceConfigurationOverride
 import androidx.compose.ui.test.FontScale
@@ -17,12 +19,14 @@ import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.then
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
@@ -70,6 +74,7 @@ class LibraryGridTest {
         grid: LibraryGrid,
         onBookClick: (Long) -> Unit = {},
         onFilterSelected: (LibraryFilter) -> Unit = {},
+        onRemoveBookRequest: (Long) -> Unit = {},
     ) {
         composeRule.setContent {
             BookshelfTheme {
@@ -78,6 +83,7 @@ class LibraryGridTest {
                         uiState = LibraryUiState.Content(LibraryRows(emptyList(), emptyList()), grid),
                         onBookClick = onBookClick,
                         onFilterSelected = onFilterSelected,
+                        onRemoveBookRequest = onRemoveBookRequest,
                     )
                 }
             }
@@ -325,4 +331,121 @@ class LibraryGridTest {
         composeRule.onNodeWithTag(libraryGridCardTag(1)).assertExists()
         composeRule.onNodeWithTag(libraryGridCardTag(2)).assertExists()
     }
+
+    // F1 (AC1): long-pressing a card shows the popover with the remove item, and does not
+    // navigate to Detail.
+    @Test
+    fun longPressingACard_opensMenu_doesNotNavigate() {
+        val clicked = mutableListOf<Long>()
+        val counts = LibraryCounts(all = 1, reading = 1, finished = 0, wantToRead = 0, lentOut = 0)
+        setContent(LibraryGrid(LibraryFilter.All, counts, listOf(LibraryBook(book(1), null))), onBookClick = { clicked += it })
+
+        composeRule.onNodeWithTag(libraryGridCardTag(1)).performTouchInput { longClick() }
+
+        composeRule.onNodeWithTag(LIBRARY_CARD_MENU_TEST_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(LIBRARY_CARD_MENU_REMOVE_TEST_TAG).assertIsDisplayed()
+        assertTrue("a long-press must never also navigate", clicked.isEmpty())
+    }
+
+    // F2 (AC1): a plain tap still opens Detail and shows no menu.
+    @Test
+    fun plainTapOnACard_opensDetail_showsNoMenu() {
+        val clicked = mutableListOf<Long>()
+        val counts = LibraryCounts(all = 1, reading = 1, finished = 0, wantToRead = 0, lentOut = 0)
+        setContent(LibraryGrid(LibraryFilter.All, counts, listOf(LibraryBook(book(1), null))), onBookClick = { clicked += it })
+
+        composeRule.onNodeWithTag(libraryGridCardTag(1)).performClick()
+
+        assertEquals(listOf(1L), clicked)
+        composeRule.onAllNodesWithTag(LIBRARY_CARD_MENU_TEST_TAG).assertCountEquals(0)
+    }
+
+    // F6 (AC2): tapping "⋮" opens the very same menu tag, and does not navigate to Detail.
+    @Test
+    fun tappingOverflowButton_opensSameMenu_doesNotNavigate() {
+        val clicked = mutableListOf<Long>()
+        val removed = mutableListOf<Long>()
+        val counts = LibraryCounts(all = 1, reading = 1, finished = 0, wantToRead = 0, lentOut = 0)
+        setContent(
+            LibraryGrid(LibraryFilter.All, counts, listOf(LibraryBook(book(1), null))),
+            onBookClick = { clicked += it },
+            onRemoveBookRequest = { removed += it },
+        )
+
+        composeRule.onNodeWithTag(libraryGridCardMenuButtonTag(1), useUnmergedTree = true).performClick()
+
+        composeRule.onNodeWithTag(LIBRARY_CARD_MENU_TEST_TAG).assertIsDisplayed()
+        assertTrue("tapping the overflow button must never navigate", clicked.isEmpty())
+
+        composeRule.onNodeWithTag(LIBRARY_CARD_MENU_REMOVE_TEST_TAG).performClick()
+        assertEquals(listOf(1L), removed)
+    }
+
+    // F9 (plan security notes): tapping outside the popover closes it with no side effect - the
+    // remove callback is never invoked.
+    @Test
+    fun tappingOutsideTheOpenMenu_closesIt_noRemoveCallback() {
+        val removed = mutableListOf<Long>()
+        val counts = LibraryCounts(all = 1, reading = 1, finished = 0, wantToRead = 0, lentOut = 0)
+        setContent(
+            LibraryGrid(LibraryFilter.All, counts, listOf(LibraryBook(book(1), null))),
+            onRemoveBookRequest = { removed += it },
+        )
+
+        composeRule.onNodeWithTag(libraryGridCardTag(1)).performTouchInput { longClick() }
+        composeRule.onNodeWithTag(LIBRARY_CARD_MENU_TEST_TAG).assertIsDisplayed()
+
+        composeRule.onNodeWithTag(LIBRARY_GRID_TITLE_TEST_TAG).performClick()
+
+        composeRule.onAllNodesWithTag(LIBRARY_CARD_MENU_TEST_TAG).assertCountEquals(0)
+        assertTrue(removed.isEmpty())
+    }
+
+    // F10/AC4: the "⋮" is its own clickable, role Button, with a content description that names
+    // the book.
+    @Test
+    fun overflowButton_hasClickAction_roleButton_andTitledDescription() {
+        val counts = LibraryCounts(all = 1, reading = 1, finished = 0, wantToRead = 0, lentOut = 0)
+        setContent(LibraryGrid(LibraryFilter.All, counts, listOf(LibraryBook(book(1, "Sapiens"), null))))
+
+        val node = composeRule.onNodeWithTag(libraryGridCardMenuButtonTag(1), useUnmergedTree = true)
+        node.assert(SemanticsMatcher.keyIsDefined(SemanticsActions.OnClick))
+        node.assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Button))
+        node.assert(hasContentDescription("Sapiens", substring = true))
+    }
+
+    // F11/AC4: the "⋮" description is absent from the card's own merged semantics (it is a
+    // separate focus stop), and the card still exposes a long-click action labelled "Show book
+    // actions".
+    @Test
+    fun overflowButton_isNotMergedIntoCard_cardStillExposesLongClickAction() {
+        val counts = LibraryCounts(all = 1, reading = 1, finished = 0, wantToRead = 0, lentOut = 0)
+        setContent(LibraryGrid(LibraryFilter.All, counts, listOf(LibraryBook(book(1, "Sapiens"), null))))
+
+        composeRule.onNodeWithTag(libraryGridCardTag(1))
+            .assert(notMatching(hasContentDescription("More options", substring = true)))
+        composeRule.onNodeWithTag(libraryGridCardTag(1))
+            .assert(SemanticsMatcher.keyIsDefined(SemanticsActions.OnLongClick))
+    }
+
+    // F12/K10: two cards' menu state is independent - opening one never opens the other.
+    @Test
+    fun twoCardsMenuState_isIndependent() {
+        val counts = LibraryCounts(all = 2, reading = 2, finished = 0, wantToRead = 0, lentOut = 0)
+        setContent(
+            LibraryGrid(
+                LibraryFilter.All,
+                counts,
+                listOf(LibraryBook(book(1, "Alpha"), null), LibraryBook(book(2, "Beta"), null)),
+            ),
+        )
+
+        composeRule.onNodeWithTag(libraryGridCardTag(1)).performTouchInput { longClick() }
+
+        composeRule.onAllNodesWithTag(LIBRARY_CARD_MENU_TEST_TAG).assertCountEquals(1)
+        composeRule.onNodeWithTag(libraryGridCardMenuButtonTag(2), useUnmergedTree = true).assertExists()
+    }
 }
+
+private fun notMatching(matcher: SemanticsMatcher): SemanticsMatcher =
+    SemanticsMatcher("NOT (${matcher.description})") { !matcher.matches(it) }
