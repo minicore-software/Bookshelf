@@ -173,6 +173,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   remove this book. Try again."); a book already gone is a silent no-op. A
   pending confirmation survives rotation and process death. (#35)
 
+### Fixed
+- Crash on Add Book: `OutlinedTextField`'s floating-label animation `lerp`s between
+  `BookshelfTypography.bodyLarge` and `.bodySmall`, and `TextUnit.lerp` throws if the
+  two styles' `letterSpacing` don't share a unit type. `bodySmall.letterSpacing` was
+  `Em` while `bodyLarge.letterSpacing` was `Sp` (Material3's default), so focusing any
+  labelled `OutlinedTextField` built on `BookshelfTypography` crashed the whole app -
+  reachable immediately via the Library "+" FAB. Changed `bodySmall.letterSpacing` to
+  the equivalent fixed `Sp` value at its own font size, preserving the same visual
+  spacing. (#44)
+
 ### Changed
 - **Internal, no end-user-visible change:** extended the `books` table (Room
   schema 1 → 2) with nullable `comment`, `memory_why`, `memory_where`,
