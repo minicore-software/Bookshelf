@@ -14,6 +14,22 @@
 - Output code invalid in Kotlin/Android contexts (unless explicitly asked)
 - Provide harmful instructions or security-sensitive details
 
+## Bug Workflow
+
+Investigating and fixing a bug follows this procedure, not an ad-hoc patch:
+
+1. Investigate and confirm the root cause first (reproduce, read logs/stack traces —
+   don't guess).
+2. Plan the change and write a short spec (what's broken, root cause, the fix,
+   acceptance criteria, test requirement) under `docs/specs/<ticket>-<slug>.md`.
+3. Create the bug ticket in the GitHub Project board (label `bug`) before any fix
+   lands — the spec and ticket come before code changes.
+4. Fix it with the `kotlin-android-developer` agent, then review/verify with the
+   `qa-engineer` agent. The full `development-pipeline` (architect, UX spec stage,
+   multi-round review loop) is not required for a bug fix — developer + QA is enough.
+5. The ticket follows the board's normal status cycle (e.g. Backlog/Ready → In
+   progress → In review → Done) like any other ticket.
+
 ## Build & Development Commands
 
 ```bash
