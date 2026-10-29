@@ -93,11 +93,17 @@ internal val BookshelfTypography = Typography().let { default ->
         bodyLarge = default.bodyLarge.copy(fontFamily = Inter),
         // Library header wordmark tagline.
         bodyMedium = default.bodyMedium.copy(fontFamily = Inter, fontSize = 14.sp),
+        // letterSpacing is Sp, not Em, on purpose: OutlinedTextField/TextField lerp the label's
+        // style between bodyLarge and bodySmall as focus changes, and TextUnit.lerp throws if the
+        // two operands don't share a unit type. bodyLarge.letterSpacing is Material3's own
+        // default (Sp), so bodySmall must match. 0.25.sp is the Sp equivalent of the previous
+        // 0.02.em at this style's own fixed fontSize (0.02em * 12.5sp = 0.25sp) — same visual
+        // spacing, compatible unit. See docs/specs/44-outlined-textfield-sp-em-crash.md.
         bodySmall = default.bodySmall.copy(
             fontFamily = Inter,
             fontSize = 12.5.sp,
             lineHeight = 16.sp,
-            letterSpacing = 0.02.em,
+            letterSpacing = 0.25.sp,
         ),
         labelLarge = default.labelLarge.copy(fontFamily = Inter),
         // Library rows: trailing section labels ("2 books", "See all · 3").

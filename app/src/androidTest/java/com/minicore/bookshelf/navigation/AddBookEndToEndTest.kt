@@ -39,6 +39,7 @@ import com.minicore.bookshelf.features.library.ui.addbook.ADD_BOOK_DISCARD_DIALO
 import com.minicore.bookshelf.features.library.ui.addbook.ADD_BOOK_SAVE_BUTTON_TEST_TAG
 import com.minicore.bookshelf.features.library.ui.addbook.ADD_BOOK_SCRIM_TEST_TAG
 import com.minicore.bookshelf.features.library.ui.addbook.ADD_BOOK_SHEET_TEST_TAG
+import com.minicore.bookshelf.features.library.ui.bookform.BOOK_FORM_AUTHOR_FIELD_TEST_TAG
 import com.minicore.bookshelf.features.library.ui.bookform.BOOK_FORM_TITLE_FIELD_TEST_TAG
 import dagger.Module
 import dagger.Provides
@@ -125,6 +126,24 @@ class AddBookEndToEndTest {
         }
 
         composeRule.onNodeWithText("Added to your shelf").assertIsDisplayed()
+    }
+
+    // BOOKSHELF-0044: focusing then unfocusing the title field drives OutlinedTextField's
+    // floating-label animation through a real `lerp(typography.bodyLarge, typography.bodySmall,
+    // progress)` call on BookshelfTypography, end to end - before the fix this crashed the whole
+    // process with `IllegalArgumentException: Cannot perform operation for Sp and Em`, reachable
+    // the instant the FAB's Add Book sheet opened and the title field was tapped.
+    @Test
+    fun focusingAndUnfocusingTheTitleField_doesNotCrash() {
+        setContent()
+        openAddBookSheet()
+
+        composeRule.onNodeWithTag(BOOK_FORM_TITLE_FIELD_TEST_TAG).performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(BOOK_FORM_AUTHOR_FIELD_TEST_TAG).performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(ADD_BOOK_SHEET_TEST_TAG).assertIsDisplayed()
     }
 
     // Critical #3: the scrim's clickable sits on an ancestor Box behind the Surface, not on top
