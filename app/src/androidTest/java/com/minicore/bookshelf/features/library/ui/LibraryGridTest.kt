@@ -389,9 +389,14 @@ class LibraryGridTest {
         val counts = LibraryCounts(all = 1, reading = 1, finished = 0, wantToRead = 0, lentOut = 0)
         setContent(LibraryGrid(LibraryFilter.All, counts, listOf(LibraryBook(book(1), null))), onBookClick = { clicked += it })
 
+        // `moveBy` from `center` must actually clear the card's own bounds, not just move a
+        // little within them (reviewer finding: a 100px move from center never left a ~267px-
+        // wide card on the test device, so this used to be read as a tap, not a drag-off).
+        // `moveTo` past the card's right edge guarantees that regardless of its measured width.
         composeRule.onNodeWithTag(libraryGridCardTag(1)).performTouchInput {
             down(center)
-            moveBy(Offset(100f, 0f))
+            advanceEventTime(100)
+            moveTo(Offset(width + 50f, center.y))
             up()
         }
         composeRule.waitForIdle()

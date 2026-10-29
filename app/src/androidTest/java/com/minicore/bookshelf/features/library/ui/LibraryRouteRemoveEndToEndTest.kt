@@ -7,10 +7,13 @@ import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
+import androidx.lifecycle.SavedStateHandle
 import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.minicore.bookshelf.HiltTestActivity
+import com.minicore.bookshelf.core.coverimage.CoverImageStore
+import com.minicore.bookshelf.core.coverimage.CoverRefs
 import com.minicore.bookshelf.core.database.BookshelfDatabase
 import com.minicore.bookshelf.core.database.applyBookshelfConfig
 import com.minicore.bookshelf.core.database.dao.BookDao
@@ -20,6 +23,11 @@ import com.minicore.bookshelf.core.database.entity.LoanEntity
 import com.minicore.bookshelf.core.designsystem.BookshelfTheme
 import com.minicore.bookshelf.core.model.BookStatus
 import com.minicore.bookshelf.di.DatabaseModule
+import com.minicore.bookshelf.features.library.data.RoomLibraryRepository
+import com.minicore.bookshelf.features.library.domain.CurrentDateProvider
+import com.minicore.bookshelf.features.library.domain.ObserveLibraryGridUseCase
+import com.minicore.bookshelf.features.library.domain.ObserveLibraryRowsUseCase
+import com.minicore.bookshelf.features.library.domain.RemoveBookUseCase
 import com.minicore.bookshelf.features.library.ui.removebook.REMOVE_BOOK_CANCEL_BUTTON_TEST_TAG
 import com.minicore.bookshelf.features.library.ui.removebook.REMOVE_BOOK_CONFIRM_BUTTON_TEST_TAG
 import com.minicore.bookshelf.features.library.ui.removebook.REMOVE_BOOK_OPEN_LOAN_WARNING_TEST_TAG
@@ -31,8 +39,12 @@ import dagger.hilt.android.testing.HiltAndroidTest
 import dagger.hilt.android.testing.UninstallModules
 import dagger.hilt.components.SingletonComponent
 import java.io.File
+import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
+import java.util.UUID
+import javax.inject.Inject
+import javax.inject.Provider
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -40,6 +52,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -65,7 +78,20 @@ class LibraryRouteRemoveEndToEndTest {
     @get:Rule(order = 1)
     val composeRule = createAndroidComposeRule<HiltTestActivity>()
 
+    // The real, Context-backed cover store (CoverImageModule is not uninstalled here) - used to
+    // hand-build a `RemoveBookUseCase` for the process-death test below (reviewer finding: build
+    // the ViewModel by hand with a pre-filled SavedStateHandle, rather than relying on
+    // `scenario.recreate()`/`StateRestorationTester`, neither of which is viable against
+    // `HiltTestActivity` - see the class KDoc).
+    @Inject
+    lateinit var coverImageStore: CoverImageStore
+
     private lateinit var database: BookshelfDatabase
+
+    // Tracks every cover file this test writes directly to disk (not through
+    // `FileCoverImageStore`), so a failing assertion still cleans up `filesDir/covers` rather
+    // than leaving litter for the next instrumented run on the same device (reviewer finding).
+    private val seededCoverFiles = mutableListOf<File>()
 
     @Before
     fun setUp() {
@@ -80,12 +106,19 @@ class LibraryRouteRemoveEndToEndTest {
     @After
     fun tearDown() {
         database.close()
+        seededCoverFiles.forEach { it.delete() }
     }
 
-    private fun coverFileFor(bookId: Long): File {
+    /** A fresh, real stored-cover-ref-shaped file - reviewer finding: a `"book-$bookId-..."`
+     * name fails [CoverRefs.isValidStoredRef] (path-traversal protection working as intended),
+     * so [com.minicore.bookshelf.core.coverimage.FileCoverImageStore.delete] silently no-ops on
+     * it, which is a fixture bug, not a production one. */
+    private fun newCoverFile(): File {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        val coversDir = File(context.filesDir, "covers").apply { mkdirs() }
-        return File(coversDir, "book-$bookId-cover.jpg")
+        val coversDir = File(context.filesDir, CoverRefs.COVERS_DIR).apply { mkdirs() }
+        val file = File(coversDir, "${UUID.randomUUID()}.jpg")
+        seededCoverFiles += file
+        return file
     }
 
     /** Seeds a lent book with a real stored cover file, returns (bookId, loanId, coverFile). */
@@ -109,9 +142,10 @@ class LibraryRouteRemoveEndToEndTest {
                 ),
             )
         }
-        val coverFile = coverFileFor(bookId)
+        val coverFile = newCoverFile()
         coverFile.writeText("fake-jpeg-bytes")
-        val coverRef = "covers/${coverFile.name}"
+        val coverRef = "${CoverRefs.COVERS_DIR}/${coverFile.name}"
+        assertTrue("fixture bug: $coverRef must match CoverRefs.STORED_REF_REGEX", CoverRefs.isValidStoredRef(coverRef))
         runBlocking {
             database.bookDao().update(requireNotNull(database.bookDao().observeById(bookId).first()).copy(coverUri = coverRef))
         }
@@ -216,6 +250,50 @@ class LibraryRouteRemoveEndToEndTest {
         assertEquals(true, loanExists)
         assertEquals(true, coverFile.exists())
         coverFile.delete()
+    }
+
+    // K7/B18/B19 (reviewer finding): a hand-built LibraryViewModel, over the same in-memory DB,
+    // with its SavedStateHandle pre-filled exactly as process-death restore would leave it -
+    // proves the dialog renders correctly with *zero user action*, and that confirming from that
+    // restored state still cascades. `scenario.recreate()`/`StateRestorationTester` are not used
+    // here - see the class KDoc for why neither is viable against `HiltTestActivity`.
+    @Test
+    fun restoredSavedStateHandle_rendersThePrompt_andConfirmingStillCascades() {
+        val (bookId, loanId, coverFile) = seedLentBookWithCover("Heretics of Dune")
+
+        val repository = RoomLibraryRepository(database.bookDao(), database.loanDao())
+        val savedStateHandle = SavedStateHandle(
+            mapOf(
+                "library_remove_book_id" to bookId,
+                "library_remove_book_title" to "Heretics of Dune",
+                "library_remove_book_borrower" to "Priya",
+            ),
+        )
+        val viewModel = LibraryViewModel(
+            ObserveLibraryRowsUseCase(repository, CurrentDateProvider(Provider { Clock.systemDefaultZone() })),
+            ObserveLibraryGridUseCase(repository),
+            RemoveBookUseCase(repository, coverImageStore),
+            savedStateHandle,
+        )
+
+        composeRule.setContent {
+            BookshelfTheme {
+                LibraryRoute(
+                    onSearchClick = {},
+                    onBookClick = {},
+                    onSeeAllLoansClick = {},
+                    onAddBookClick = {},
+                    viewModel = viewModel,
+                )
+            }
+        }
+
+        // No long-press, no "⋮" tap: the dialog must already be showing, restored purely from
+        // the pre-filled SavedStateHandle.
+        composeRule.onNodeWithTag(REMOVE_BOOK_OPEN_LOAN_WARNING_TEST_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(REMOVE_BOOK_CONFIRM_BUTTON_TEST_TAG).performClick()
+
+        assertCascaded(bookId, loanId, coverFile)
     }
 
     private object TestDatabaseHolder {
